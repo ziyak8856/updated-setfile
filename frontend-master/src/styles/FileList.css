@@ -1,0 +1,49 @@
+/* Style for mode name */
+.mode-name1 {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+/* Style for mode list */
+.mode-list1 {
+  list-style: none;
+  padding: 0;
+}
+
+.delete-button {
+  background-color: red;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  margin-left: 10px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.delete-button:hover {
+  background-color: darkred;
+}
+/* Style for file checkboxes */
+.file-list1 {
+  list-style: none;
+  margin-top: 5px;
+  padding-left: 20px;
+}
+
+.file-item1 {
+  display: flex;
+  align-items: center;
+  margin: 5px 0;
+}
+
+.file-item1 input[type="checkbox"] {
+  margin-right: 10px;
+  transform: scale(1.2);
+  cursor: pointer;
+}
+
+.file-item1 label {
+  font-size: 14px;
+  cursor: pointer;
+}

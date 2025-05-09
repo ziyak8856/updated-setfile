@@ -1,0 +1,141 @@
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  backdrop-filter: blur(2px);
+}
+
+/* Modal Content */
+.modal-content {
+  background: #ffffff;
+  padding: 25px 30px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  text-align: left;
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+  /* Headings */
+  .h2 {
+    font-size: 22px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 16px;
+  }
+  
+  .h3 {
+    font-size: 18px;
+    margin: 20px 0 10px;
+    color: #555;
+  }
+  
+  .h4 {
+    font-size: 16px;
+    font-weight: 500;
+    color: #444;
+    margin-bottom: 10px;
+  }
+  
+  /* Input Field */
+  .modal-input {
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  
+  /* Checkbox Group */
+  .checkbox-group,
+  .mv-container {
+    margin: 10px 0;
+    padding: 10px;
+    border-radius: 6px;
+    background: #f9f9f9;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  
+  .checkbox-label,
+  .mv-line {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 6px;
+    color: #333;
+  }
+  
+  /* Buttons */
+  .modal-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  
+  .add-more-btn,
+  .submit-btn,
+  .close-btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    flex: 1;
+    transition: all 0.2s ease-in-out;
+  }
+  
+  /* Button Colors */
+  .add-more-btn {
+    background-color: #007bff;
+    color: #fff;
+  }
+  .add-more-btn:hover {
+    background-color: #0056b3;
+  }
+  
+  .submit-btn {
+    background-color: #28a745;
+    color: #fff;
+  }
+  .submit-btn:hover {
+    background-color: #1e7e34;
+  }
+  
+  .close-btn {
+    background-color: #6c757d;
+    color: #fff;
+    margin: 10px auto 0;
+    width: 100%;
+  }
+  .close-btn:hover {
+    background-color: #545b62;
+  }
+  
+  /* Error Message */
+  .error-message {
+    color: #dc3545;
+    font-size: 13px;
+    margin-top: 10px;
+    text-align: center;
+  }
+  
+  /* Responsive Adjustments */
+  @media (max-height: 500px) {
+    .modal-content {
+      padding: 20px;
+      max-height: 95vh;
+    }
+  }

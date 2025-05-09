@@ -1,0 +1,193 @@
+.file-table-container {
+  padding-left: 0px; /* Left padding added to accommodate "+" */
+  max-width: 100%;
+  overflow-x: auto;
+  background-color: #f8f9fa;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.toggle-format-button {
+  margin-bottom: 12px;
+  padding: 8px 16px;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.3s ease;
+}
+
+.toggle-format-button:hover {
+  background-color: #0056b3;
+}
+
+.table-wrapper {
+  margin-left: 0px; /* Reduced from 40px to 0px */
+  position: relative;
+  
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.file-data-table {
+  width: 100%;
+  margin-left: 50px;
+  margin-bottom: 20px;
+  border-collapse: collapse; /* No gap between rows */
+  /* background-color: #fff; */
+}
+
+.file-data-table th {
+  /* background-color: #f1f1f1; */
+  padding: 12px;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  /* border: 1px solid #dee2e6; */
+}
+
+.file-data-table td {
+  padding: 10px 14px;
+  font-size: 14px;
+  border: 1px solid #dee2e6;
+  /* background-color: #fff; */
+}
+
+.data-row:hover td {
+  background-color: #f9f9f9;
+}
+
+.cell {
+  cursor: pointer;
+}
+
+.edited-cell {
+  background-color: #fff3cd !important;
+  border-left: 4px solid #ffc107;
+}
+.unsaved-row {
+  background-color: #fffae6; /* light yellow background */
+  font-style: italic;
+  border-left: 4px solid rgb(255, 0, 0);
+}
+
+.cell-input {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 14px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  box-sizing: border-box;
+  background-color: #fff;
+}
+.delete-button1 {
+  background-color: red;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  margin-left: 10px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.delete-button1:hover {
+  background-color: darkred;
+}
+/* Add Row Section Between Data Rows */
+.add-row {
+  height: 0;
+  position: relative;
+}
+
+.add-row td {
+  padding: 0;
+  border: none;
+  background-color: transparent;
+  height: 0;
+}
+
+/* "+" Button Styling - Positioned and Visible */
+.add-button {
+  position: absolute;
+  left: -30px; /* was -35px or -20px; adjusted to be visible */
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  padding: 4px 6px;
+  border-radius: 50%;
+  border: 1px solid #ccc;
+  background-color: #e9ecef;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.add-button:hover {
+  background-color: #ced4da;
+}
+
+.save-button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  transition: background-color 0.3s ease;
+}
+
+.save-button:hover {
+  background-color: #218838;
+}
+
+/* Optional: Responsive for smaller devices */
+@media screen and (max-width: 768px) {
+  .file-data-table th,
+  .file-data-table td {
+    font-size: 13px;
+    padding: 8px;
+  }
+
+  .toggle-format-button,
+  .save-button {
+    font-size: 13px;
+    padding: 8px 14px;
+  }
+
+  .add-button {
+    left: -20px;
+  }
+
+  .file-table-container {
+    padding-left: 20px; /* Reduce on smaller screens */
+  }
+}
+.autocomplete-wrapper {
+  position: relative;
+}
+
+.suggestion-box {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 160px; /* ~7 items height */
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ccc;
+  z-index: 10;
+}
+
+.suggestion-item {
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.suggestion-item:hover {
+  background-color: #f0f0f0;
+}

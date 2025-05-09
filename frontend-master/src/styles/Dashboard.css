@@ -1,0 +1,253 @@
+body, html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  /* overflow-x: hidden;
+  overflow-y: auto; */
+}
+
+/* Main dashboard layout */
+.dashboard-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  flex-wrap: wrap;
+}
+
+/* Default layout: each section gets equal space */
+.data-table, .file-list, .global-data {
+  flex: 1;
+  max-width: 40%;
+  background: #f8f9fa;
+  padding: 7px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+  overflow: auto;
+}
+
+.data-table{
+  overflow-y: hidden;
+}
+/* When Global is hidden */
+.dashboard-container.expanded .data-table {
+  flex: 2;
+  max-width: 70%;
+}
+.dashboard-container.expanded .file-list {
+  flex: 1;
+  max-width: 30%;
+}
+.dashboard-container.expanded .global-data {
+  display: none;
+}
+
+/* When File List is hidden */
+.dashboard-container.expanded-filelist .file-list {
+  display: none;
+}
+.dashboard-container.expanded-filelist .data-table {
+  flex: 3;
+  max-width: 100%;
+}
+
+/* Section styling */
+.section {
+  background: #f8f9fa;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  height: 100%;
+  box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+}
+
+/* ============================= */
+/* ======= HIDE BUTTONS ======== */
+/* ============================= */
+
+.toggle-btn.global {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: bold;
+  transition: background 0.3s ease;
+  position: relative;
+}
+.toggle-btn.global:hover {
+  background: #0056b3;
+}
+
+.toggle-btn.filelist {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: bold;
+  transition: background 0.3s ease;
+  position: relative;
+}
+.toggle-btn.filelist:hover {
+  background: #1e7e34;
+}
+
+/* Tooltip for Global Hide Button */
+.toggle-btn.global::before {
+  content: "Hide Global File";
+  position: absolute;
+  background: black;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(-120%);
+  transition: opacity 0.2s ease-in-out;
+  pointer-events: none;
+  left: 50%;
+  top: -10px;
+  transform: translateX(-50%) translateY(-100%);
+}
+.toggle-btn.global:hover::before {
+  opacity: 1;
+}
+
+/* Tooltip for File List Hide Button */
+.toggle-btn.filelist::before {
+  content: "Hide File List";
+  position: absolute;
+  background: black;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(-120%);
+  transition: opacity 0.2s ease-in-out;
+  pointer-events: none;
+  left: 50%;
+  top: -10px;
+  transform: translateX(-50%) translateY(-100%);
+}
+.toggle-btn.filelist:hover::before {
+  opacity: 1;
+}
+
+/* ============================= */
+/* ======= SHOW BUTTONS ======== */
+/* ============================= */
+
+/* Show Button — Global */
+.show-btn-global {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background 0.3s ease;
+  z-index: 1000;
+}
+.show-btn-global:hover {
+  background: #0056b3;
+}
+.show-btn-global::after {
+  content: "Show Global File";
+  position: absolute;
+  bottom: 60px;
+  background: black;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.show-btn-global:hover::after {
+  opacity: 1;
+}
+
+/* Show Button — File List */
+.show-btn-filelist {
+  position: fixed;
+  bottom: 90px; /* placed above global button */
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background 0.3s ease;
+  z-index: 1000;
+}
+.show-btn-filelist:hover {
+  background: #1e7e34;
+}
+.show-btn-filelist::after {
+  content: "Show File List";
+  position: absolute;
+  bottom: 60px;
+  background: black;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.show-btn-filelist:hover::after {
+  opacity: 1;
+}
+
+
+/* Dashboard.css */
+.sticky-navbar {
+  position: sticky;
+  top: 0; /* Adjust this value as needed */
+  background-color: #007bff; /* Optional: Set a background color */
+  z-index: 1000; /* Ensure it stays above other content */
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Optional: Add a shadow for better visibility */
+}
