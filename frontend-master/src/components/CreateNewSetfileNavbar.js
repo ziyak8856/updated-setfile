@@ -38,12 +38,12 @@ const mergedGroups = [
   "//$MV6_Start[]"
 ];
 
-const CreateNewSetfileNavbar = ({style, selectedModes, setSelectedModes }) => {
+const CreateNewSetfileNavbar = ({style, setfilePrefix ,setSetfilePrefix,generatedSetfileName,setgeneratedSetfileName,selectedModes,setSelectedModes}) => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
   const projectName = localStorage.getItem("projectName") || "No Project Selected";
   const projectId = localStorage.getItem("projectId");
-
+  //const [selectedModes, setSelectedModes] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [message, setMessage] = useState("");
   const [customers, setCustomers] = useState([]);
@@ -57,11 +57,10 @@ const CreateNewSetfileNavbar = ({style, selectedModes, setSelectedModes }) => {
   const [mkclTables, setMkclTables] = useState([]);
   const [selectedMkclTable, setSelectedMkclTable] = useState("");
   const [ismkclModalOpen, setmkclModalOpen] = useState(false);
-  const [setfilePrefix, setSetfilePrefix] = useState("");
   const [setfileSuffix, setSetfileSuffix] = useState("");
   const [fps, setFps] = useState("");
   const [resolution, setResolution] = useState("");
-
+  
   const handleLogout = () => {
     ["token", "user", "projectId", "projectName"].forEach((item) =>
       localStorage.removeItem(item)
@@ -176,8 +175,11 @@ useEffect(() => {
   if(uniqueVariables.length)
   console.log("Updated unique variables:", uniqueVariables);
 }, [uniqueVariables]);
-  const generatedSetfileName = `${setfilePrefix || "prefix"}_${selectedCustomerName || "customer"}_${projectName}_${(modes.find(m => String(m.id) === String(selectedModes))?.name || "mode")}_${resolution || "res"}_${fps || "fps"}${setfileSuffix ? `_${setfileSuffix}` : ''}.nset`;
-
+ // const generatedSetfileName = `${setfilePrefix || "prefix"}_${selectedCustomerName || "customer"}_${projectName}_${(modes.find(m => String(m.id) === String(selectedModes))?.name || "mode")}_${resolution || "res"}_${fps || "fps"}${setfileSuffix ? `_${setfileSuffix}` : ''}.nset`;
+ 
+  if(setfilePrefix!=""&&fps!=""&&selectedCustomerName!=""&&projectName!=""&&(modes.find(m => String(m.id) === String(selectedModes))?.name)!=""&&resolution!=""){
+     setgeneratedSetfileName( `${setfilePrefix || "prefix"}_${selectedCustomerName || "customer"}_${projectName}_${(modes.find(m => String(m.id) === String(selectedModes))?.name || "mode")}_${resolution || "res"}_${fps || "fps"}${setfileSuffix ? `_${setfileSuffix}` : ''}.nset`);
+  }
   return (
     <nav style={style}>
     <nav className="create-new-setfile-navbar">

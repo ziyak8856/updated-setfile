@@ -397,3 +397,84 @@ exports.updateSelectedMV = async (req, res) => {
     connection.release();
   }
 };
+
+exports.clonesetfile = async (req, res) => {
+  const { tableName, setfilePrefix, existingcolumnName } = req.body;
+
+ 
+
+  const client = await pool.getConnection();
+
+  try {
+    // Check if column already exists
+    const [columns] = await client.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+      [tableName, setfilePrefix]
+    );
+
+    if (columns.length > 0) {
+      return res.status(400).json({ success: false, message: `Column '${setfilePrefix}' already exists in table '${tableName}'.` });
+    }
+
+    await client.query(`BEGIN`);
+
+    // Add new column
+    await client.query(
+      `ALTER TABLE \`${tableName}\` ADD COLUMN \`${setfilePrefix}\` VARCHAR(255) DEFAULT NULL`
+    );
+
+    // Copy values
+    await client.query(
+      `UPDATE \`${tableName}\` SET \`${setfilePrefix}\` = \`${existingcolumnName}\``
+    );
+
+    await client.query(`COMMIT`);
+    return res.json({ success: true });
+
+  } catch (e) {
+    await client.query(`ROLLBACK`);
+    console.error("Error in clonesetfile:", e);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+
+  } finally {
+    client.release();
+  }
+};
+
+exports.addSetfile = async (req, res) => {
+  const { mode_id, setting_id, setfilePrefix, generatedSetfileName, selectedmv } = req.body;
+
+  const client = await pool.getConnection();
+  try {
+    await client.query(`BEGIN`);
+
+    // Insert into setfile table
+    const [result] = await client.query(
+      `INSERT INTO setfile (mode_id, setting_id, name, full_name, selectedmv) VALUES (?, ?, ?, ?, ?)`,
+      [mode_id, setting_id, setfilePrefix, generatedSetfileName, selectedmv]
+    );
+
+    const insertedId = result.insertId;
+
+    // Fetch inserted row
+    const [rows] = await client.query(
+      "SELECT * FROM setfile WHERE id = ?",
+      [insertedId]
+    );
+    console.log("Inserted row:", rows);
+    await client.query(`COMMIT`);
+
+    if (rows.length > 0) {
+      return res.json({ success: true, files: rows });
+    } else {
+      return res.status(404).json({ success: false, message: "No files found after insert" });
+    }
+
+  } catch (e) {
+    await client.query(`ROLLBACK`);
+    console.error("Error in addSetfile:", e);
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
+  } finally {
+    client.release();
+  }
+};

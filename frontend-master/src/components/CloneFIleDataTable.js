@@ -5,13 +5,14 @@ import {
   addRowAPI,
   updateRowAPI,
   fetchRegmap,
-  deleteRowAPI
+  deleteRowAPI,
+  cloneFromsetfile,
+  addSetfile
 } from "../services/api";
 import "../styles/FileData.css";
-// const fs = require('fs');
-// const path = require('path');
+
 const { stringify } = require('json-stringify-safe');
-const FileDataTable = ({ selectedSetFiles }) => {
+const CloneFIleDataTable = ({ selectedSetFiles,setfilePrefix ,generatedSetfileName,selectedModes,setSelectedSetFiles}) => {
   const [tableNames, setTableNames] = useState({});
 const [tableData, setTableData] = useState([]);
 const [editedCells, setEditedCells] = useState({});
@@ -24,6 +25,8 @@ const [newRows, setNewRows] = useState([]);
 const [regmapContent, setRegmapContent] = useState("Loading regmap content...");
 const [focusedRow, setFocusedRow] = useState(null);
 const[deleted,setDeletedRows] = useState([]);
+const [changesSaved, setChangesSaved] = useState(false);
+
 useEffect(() => {
   const fetchAndSetRegmap = async () => {
     const projectId = localStorage.getItem("projectId");
@@ -40,16 +43,17 @@ useEffect(() => {
       } catch (err) {
         console.error("Error fetching regmap:", err);
         setError("Failed to fetch regmap.");
+        setLoading(false);
       } finally {
       
       }
     } else {
       console.warn("No projectId found in localStorage");
       setRegmapContent("No project ID found.");
-      
+      setLoading(false); // Stop loading
     }
   };
-
+   setLoading(false);
   fetchAndSetRegmap();
 }, []); // ✅ Only runs once when the component mounts
 useEffect(() => {
@@ -75,6 +79,7 @@ useEffect(() => {
 
     } catch {
       setError("Failed to fetch table names.");
+      setLoading(false);
     } finally {
       setLoading(false);
     }
@@ -141,7 +146,7 @@ useEffect(() => {
       setLoading(false);
     }
   };
-
+   setLoading(false)
   fetchData();
 // ✅ Rely only on meaningful changes
 }, [JSON.stringify(tableNames), JSON.stringify(selectedSetFiles)]);
@@ -261,41 +266,45 @@ const handleAddRow = (refRow) => {
   ]);
 };
 
-const handleSaveEditedCells = async () => {
-  for (const rowId in editedCells) {
-    const changes = editedCells[rowId];
-    const settingId = tableData.find(row => row.id == rowId)?.setting_id;
-    const tableName = tableNames[settingId];
-    if (!tableName) continue;
-
-    for (const colName in changes) {
+const handleSaveEditedCells = async (newFile) => {
+    for (const rowId in editedCells) {
+      const changes = editedCells[rowId];
+      const originalSettingId = tableData.find(row => row.id == rowId)?.setting_id;
+      const originalTableName = tableNames[originalSettingId];
+      
+      for (let colName in changes) {
+        const value = changes[colName];
+        const regmapEntry = regmapContent[value]?.Value;
         
-        const regmapEntry = regmapContent[changes[colName]]?.Value;
-        if(colName=="Tunning_param"&&regmapEntry==null){
-          const v=changes[colName];
+        let tableName = originalTableName;
+        let coln=colName;
+        // If not Tunning_param, override with new file name
+        if (colName !== "Tunning_param") {
+          coln = newFile.name;
+        }
+  
+        if (colName === "Tunning_param" && regmapEntry == null) {
+          const v = value;
           console.log(v);
-          if((v[0]=="4"||v[0]=="2")&&v.length==8){
-            await updateRowAPI(tableName, rowId, colName, changes[colName], regmapEntry);
-            alert("Edited cells saved successfully!");
+          if ((v[0] === "4" || v[0] === "2") && v.length === 8) {
+            await updateRowAPI(tableName, rowId, colName, value, regmapEntry);
+          //  alert("Edited cells saved successfully!");
             return;
-          }else{
-            alert(`Address sholud start from 2 or 4 check length :${tableData.find(row=>row.id==rowId)?.serial_number}`);
+          } else {
+            alert(`Address should start from 2 or 4. Check serial number: ${tableData.find(row => row.id == rowId)?.serial_number}`);
             return;
           }
-          alert(`Tunning Not found in regmap at :${tableData.find(row=>row.id==rowId)?.serial_number}`);
-          return;
-        }else{
-          await updateRowAPI(tableName, rowId, colName, changes[colName], regmapEntry);
+        } else {
+          await updateRowAPI(tableName, rowId, coln, value, regmapEntry);
         }
-      
+      }
     }
-  }
+  
+  //  alert("Edited cells saved successfully!");
+  };
+  
 
-  setEditedCells({});
-  alert("Edited cells saved successfully!");
-};
-
-const handleSaveNewRows = async () => {
+const handleSaveNewRows = async (newFile) => {
   const unsavedValidRows = [];
 
   for (const newRow of newRows) {
@@ -328,7 +337,8 @@ const handleSaveNewRows = async () => {
         if (col === "Tunning_param") {
           finalRowData[col] = rowInState[col];
         } else {
-          finalRowData[col] = isComment ? null : (rowInState[col] ?? regmapValue);
+          const nc=newFile.name;
+          finalRowData[nc] = isComment ? null : (rowInState[col] ?? regmapValue);
         }
       }
     });
@@ -358,7 +368,7 @@ const handleSaveNewRows = async () => {
   }
 
   setNewRows([]);
-  alert("New rows saved successfully!");
+ // alert("New rows saved successfully!");
 };
 
 // \U0001f9e0 Unified Save Button
@@ -405,95 +415,149 @@ const handleSaveDeletedRows = async () => {
 
   if (allSuccessful) {
     setDeletedRows([]);
-    alert("All deletions saved to backend!");
+   // alert("All deletions saved to backend!");
   } else {
     alert("Some deletions failed. Please try again.");
   }
 };
-
-
-// \U0001f9e0 Unified Save Button
 const handleSaveAllChanges = async () => {
-  if (Object.keys(editedCells).length > 0) {
-    await handleSaveEditedCells();
-  }
-  if (deleted.length > 0) {
-    await handleSaveDeletedRows();
-  }
-  if (newRows.length > 0) {
-    await handleSaveNewRows();
-  }
-  // console.log(deletedRowIds, "deletedRowIds");
+    try {
+      const updatedFiles = {};
+      const file = Object.values(selectedSetFiles)[0]; // The only selected file
   
-};
+      if (!file) {
+        alert("No setfile selected.");
+        return;
+      }
   
-
+      // Step 1: Clone column in DB
+      const cloneResponse = await cloneFromsetfile(
+        tableNames[file.setting_id],
+        setfilePrefix,
+        file.name
+      );
+  
+      if (!cloneResponse?.success) {
+        console.error("Clone failed for:", file.name);
+        alert(`Cloning failed for setfile: ${file.name}`);
+        return;
+      }
+  
+      // Step 2: Add new setfile entry
+      const addSetfileResponse = await addSetfile(
+        selectedModes,
+        file.setting_id,
+        setfilePrefix,
+        generatedSetfileName,
+        file.selectedmv
+      );
+  
+      let newFile = null;
+      if (addSetfileResponse?.files) {
+        addSetfileResponse.files.forEach((f) => {
+          updatedFiles[f.id] = f;
+          newFile = f; // Save the new file object
+        });
+        
+        // Remove the previous selected setfile and set the new one
+        setSelectedSetFiles(updatedFiles);  // This ensures that only the new setfile is selected
+      }
+  
+      // Step 3: Update data for the new setfile (if needed)
+      // You can implement additional logic for updating data based on the new file here.
+  
+      // Step 4: Save changes for the new file
+      console.log(newFile, "addSetfileResponse.files");
+      if (Object.keys(editedCells).length > 0) {
+        await handleSaveEditedCells(newFile); // Pass correct file ID
+      }
+      if (deleted.length > 0) {
+        await handleSaveDeletedRows(newFile); // Use new file ID
+      }
+      if (newRows.length > 0) {
+        await handleSaveNewRows(newFile); // Use new file ID
+      }
+     
+      setChangesSaved(true);
+      setLoading(false);
+      alert("Setfile cloned and all changes saved successfully.");
+    } catch (error) {
+      console.error("Error in handleSaveAllChanges:", error);
+      alert("An error occurred while saving changes.");
+    }
+  };
+  
 
 
 const Genratesetfile = async () => {
-  const finalRowData = {};
- // console.log(tableData)
-  tableData.forEach(col => {
-    Object.keys(col).forEach(key => {
-      if (key !== "id" && key !== "serial_number" && key !== "setting_id" && key !== "Tunning_param") {
-        let keyoffile = col["Tunning_param"];
-        const val = col[key];
+//   const finalRowData = {};
+//  // console.log(tableData)
+//   tableData.forEach(col => {
+//     Object.keys(col).forEach(key => {
+//       if (key !== "id" && key !== "serial_number" && key !== "setting_id" && key !== "Tunning_param") {
+//         let keyoffile = col["Tunning_param"];
+//         const val = col[key];
        
-        if (!(keyoffile.startsWith("//"))) keyoffile = "WRITE #" + keyoffile;
-        const p = keyoffile + " " + val;
-        const nkey=col["setting_id"]+"$"+key;
-        // If the key doesn't exist in finalRowData, create an array
-        if (!finalRowData[nkey]) {
-          finalRowData[nkey] = [];
-        }
+//         if (!(keyoffile.startsWith("//"))) keyoffile = "WRITE #" + keyoffile;
+//         const p = keyoffile + " " + val;
+//         const nkey=col["setting_id"]+"$"+key;
+//         // If the key doesn't exist in finalRowData, create an array
+//         if (!finalRowData[nkey]) {
+//           finalRowData[nkey] = [];
+//         }
         
-        // Push the new value into the array
-        finalRowData[nkey].push(p);
-      }
-    });
-  });
+//         // Push the new value into the array
+//         finalRowData[nkey].push(p);
+//       }
+//     });
+//   });
   
   
- //Create a downloadable text file for each key
-  for (const key in finalRowData) {
-   // console.log(key);
-    const [setting_id,name]=key.split("$");
-   // console.log(setting_id);
- //   console.log(name);
-     let Nname;
-     for(const key1 in selectedSetFiles){
-      console.log("key",key);
-       if(selectedSetFiles[key1].name==name&&selectedSetFiles[key1].setting_id==setting_id){
-        // console.log("key",key);
-        // console.log(selectedSetFiles[key1].full_name);
-        Nname=selectedSetFiles[key1].full_name;
-        break;
-       }
-     }
+//  //Create a downloadable text file for each key
+//   for (const key in finalRowData) {
+//    // console.log(key);
+//     const [setting_id,name]=key.split("$");
+//    // console.log(setting_id);
+//  //   console.log(name);
+//      let Nname;
+//      for(const key1 in selectedSetFiles){
+//       console.log("key",key);
+//        if(selectedSetFiles[key1].name==name&&selectedSetFiles[key1].setting_id==setting_id){
+//         // console.log("key",key);
+//         // console.log(selectedSetFiles[key1].full_name);
+//         Nname=selectedSetFiles[key1].full_name;
+//         break;
+//        }
+//      }
    
-    const dataToWrite = finalRowData[key].join('\n'); // Join array values with new line
-    const blob = new Blob([dataToWrite], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
+//     const dataToWrite = finalRowData[key].join('\n'); // Join array values with new line
+//     const blob = new Blob([dataToWrite], { type: 'text/plain' });
+//     const url = URL.createObjectURL(blob);
     
-    // Create a link element
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${Nname}.nset`; // Set the file name
-    document.body.appendChild(a);
-    a.click(); // Trigger the download
-    document.body.removeChild(a); // Clean up
-    URL.revokeObjectURL(url); // Free up memory
-  }
+//     // Create a link element
+//     const a = document.createElement('a');
+//     a.href = url;
+//     a.download = `${Nname}.nset`; // Set the file name
+//     document.body.appendChild(a);
+//     a.click(); // Trigger the download
+//     document.body.removeChild(a); // Clean up
+//     URL.revokeObjectURL(url); // Free up memory
+//   }
 
   // console.log(finalRowData);
   // console.log(selectedSetFiles)
+  // console.log( JSON.stringify(selectedSetFiles))
+  console.log(selectedModes);
 };
 
 // Call the function (make sure to define tableData before calling)
-
-
-  
 return (
+    <div>
+    {loading && (
+        <div className="loading-overlay">
+          <div className="spinner"></div>
+        </div>
+      )}
   <div style={{ padding: "20px", maxWidth: "100%", maxHeight: '83vh' }}>
        <button
       onClick={Genratesetfile}
@@ -523,10 +587,7 @@ return (
     >
       Switch to {displayFormat === "hex" ? "Decimal" : "Hexadecimal"}
     </button>
- 
-
-
-      {(Object.keys(editedCells).length > 0 || newRows.length > 0|| deleted.length > 0) && (
+      {(Object.keys(editedCells).length > 0 || newRows.length > 0|| deleted.length > 0||(generatedSetfileName!=""&& JSON.stringify(selectedSetFiles)!="{}")) && (
         <button onClick={handleSaveAllChanges} style={{
           marginTop: "20px",
           marginLeft: "20px",
@@ -541,7 +602,6 @@ return (
           Save All Changes
         </button>
       )}
-
       <div style={{ position: "relative", marginLeft: "30px", maxHeight: '82vh', overflowY: "auto" }}>
       <table style={{
         borderCollapse: "collapse",
@@ -737,13 +797,9 @@ return (
         </tbody>
       </table>
     </div>
-    
-    
-
+  </div>
   </div>
 );
-
-  
 };
 
-export default FileDataTable;
+export default CloneFIleDataTable;

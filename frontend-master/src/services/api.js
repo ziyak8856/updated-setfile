@@ -332,3 +332,27 @@ export const updateMVHeaderForCustomer = async (customerId, selectedIndexes) => 
     throw error.response?.data?.message || "Failed to update MV headers.";
   }
 }
+export const cloneFromsetfile = async (tableName,setfilePrefix, existingcolumnName) => {
+  try {
+    const response = await axios.post(
+      `${API_BASE_URL}/setfile/clone-from`,
+      {tableName,setfilePrefix, existingcolumnName },
+      getAuthHeaders()
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data?.message || "Failed to update MV headers.";
+  }
+}
+export const addSetfile = async (mode_id,setting_id,setfilePrefix,generatedSetfileName,selectedmv) => {
+  try {
+    const response = await axios.post(
+      `${API_BASE_URL}/setfile/add-setfile`,
+      {mode_id,setting_id,setfilePrefix,generatedSetfileName,selectedmv },
+      getAuthHeaders()
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data?.message || "Failed to update MV headers.";
+  }
+}
