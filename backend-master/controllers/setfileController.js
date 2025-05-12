@@ -478,3 +478,9 @@ exports.addSetfile = async (req, res) => {
     client.release();
   }
 };
+
+exports.cloneFromAny = async (req, res) => {
+  const{tableName,setfilePrefix}=req.body;
+  //updatemv header api take cus id selecteddmv and selected indexes
+  //fill all data then do your filling od data
+};

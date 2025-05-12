@@ -2,17 +2,13 @@ import React, { useState, useEffect } from "react";
 import {
   fetchTableNameBySettingId,
   fetchTableData,
-  addRowAPI,
-  updateRowAPI,
   fetchRegmap,
-  deleteRowAPI,
-  cloneFromsetfile,
   addSetfile
 } from "../services/api";
 import "../styles/FileData.css";
 
 const { stringify } = require('json-stringify-safe');
-const CloneFIleDataTable = ({ selectedSetFiles,setfilePrefix ,generatedSetfileName,selectedModes}) => {
+const CloneFromAny = ({ selectedSetFiles,setfilePrefix ,generatedSetfileName,selectedModes}) => {
   const [tableNames, setTableNames] = useState({});
 const [tableData, setTableData] = useState([]);
 const [editedCells, setEditedCells] = useState({});
@@ -265,112 +261,6 @@ const handleAddRow = (refRow) => {
     },
   ]);
 };
-
-const handleSaveEditedCells = async (newFile) => {
-    for (const rowId in editedCells) {
-      const changes = editedCells[rowId];
-      const originalSettingId = tableData.find(row => row.id == rowId)?.setting_id;
-      const originalTableName = tableNames[originalSettingId];
-      
-      for (let colName in changes) {
-        const value = changes[colName];
-        const regmapEntry = regmapContent[value]?.Value;
-        
-        let tableName = originalTableName;
-        let coln=colName;
-        // If not Tunning_param, override with new file name
-        if (colName !== "Tunning_param") {
-          coln = newFile.name;
-        }
-  
-        if (colName === "Tunning_param" && regmapEntry == null) {
-          const v = value;
-          console.log(v);
-          if ((v[0] === "4" || v[0] === "2") && v.length === 8) {
-            await updateRowAPI(tableName, rowId, colName, value, regmapEntry);
-          //  alert("Edited cells saved successfully!");
-            return;
-          } else {
-            alert(`Address should start from 2 or 4. Check serial number: ${tableData.find(row => row.id == rowId)?.serial_number}`);
-            return;
-          }
-        } else {
-          await updateRowAPI(tableName, rowId, coln, value, regmapEntry);
-        }
-      }
-    }
-  
-  //  alert("Edited cells saved successfully!");
-  };
-  
-
-const handleSaveNewRows = async (newFile) => {
-  const unsavedValidRows = [];
-
-  for (const newRow of newRows) {
-    const rowInState = tableData.find(r => r.id === newRow.tempId);
-    const tunningValue = rowInState?.Tunning_param?.toString().trim();
-
-    if (!tunningValue) {
-      alert(`Tunning_param is required before saving row with serial no: ${rowInState.serial_number}`);
-      return;
-    }
-
-    unsavedValidRows.push({ newRow, rowInState });
-  }
-
-  for (const { newRow, rowInState } of unsavedValidRows) {
-    const refRow = tableData.find(r => r.id === newRow.refId);
-    const settingId = refRow?.setting_id;
-    const tableName = tableNames[settingId];
-    if (!tableName) continue;
-
-    const isComment = typeof rowInState.Tunning_param === "string" &&
-                      rowInState.Tunning_param.trim().startsWith("//");
-
-    const tuningKey = rowInState.Tunning_param?.trim();
-    const regmapValue = regmapContent?.[tuningKey]?.Value ?? null;
-
-    const finalRowData = {};
-    columns.forEach(col => {
-      if (!["id", "serial_number", "setting_id"].includes(col)) {
-        if (col === "Tunning_param") {
-          finalRowData[col] = rowInState[col];
-        } else {
-          const nc=newFile.name;
-          finalRowData[nc] = isComment ? null : (rowInState[col] ?? regmapValue);
-        }
-      }
-    });
-
-    const adjustedRefId = !isNaN(parseInt(newRow.refId))
-      ? parseInt(newRow.refId)
-      : newRow.refId;
-
-    const response = await addRowAPI(
-      tableName,
-      adjustedRefId,
-      newRow.position,
-      finalRowData,
-      regmapValue
-    );
-
-    if (response?.success && response?.newRow) {
-      const actualRow = { ...response.newRow, setting_id: rowInState.setting_id };
-
-      setTableData(prev => {
-        const index = prev.findIndex(row => row.id === newRow.tempId);
-        const updated = [...prev];
-        updated.splice(index, 1, actualRow);
-        return updated;
-      });
-    }
-  }
-
-  setNewRows([]);
- // alert("New rows saved successfully!");
-};
-
 // \U0001f9e0 Unified Save Button
 const handleDeleteRow = (rowId) => {
   const rowToDelete = tableData.find(row => row.id === rowId);
@@ -392,92 +282,36 @@ const handleDeleteRow = (rowId) => {
   console.log(rowToDelete, "rowToDelete");
   setTableData(prev => prev.filter(row => row.id !== rowId)); // Remove from UI
 };
-
-
-
-const handleSaveDeletedRows = async () => {
-  if (deleted.length === 0) return;
-
-  let allSuccessful = true;
-
-  for (const row of deleted) {
-    const tableName = tableNames[row.setting_id];
-    if (!tableName) continue;
-    console.log(tableName, "tableName");
-    console.log(row.id, "rowId");
-    const response = await deleteRowAPI(tableName, row.id);
-
-    if (!response?.success) {
-      allSuccessful = false;
-      console.error(`Failed to delete row with ID ${row.id}`, response);
-    }
-  }
-
-  if (allSuccessful) {
-    setDeletedRows([]);
-   // alert("All deletions saved to backend!");
-  } else {
-    alert("Some deletions failed. Please try again.");
-  }
-};
 const handleSaveAllChanges = async () => {
     try {
-      const updatedFiles = {};
+      
       const file = Object.values(selectedSetFiles)[0]; // The only selected file
   
       if (!file) {
         alert("No setfile selected.");
         return;
       }
-  
-      // Step 1: Clone column in DB
-      const cloneResponse = await cloneFromsetfile(
-        tableNames[file.setting_id],
-        setfilePrefix,
-        file.name
-      );
-  
-      if (!cloneResponse?.success) {
-        console.error("Clone failed for:", file.name);
-        alert(`Cloning failed for setfile: ${file.name}`);
-        return;
-      }
-  
-      // Step 2: Add new setfile entry
-      const addSetfileResponse = await addSetfile(
+        const simplifiedData = tableData.map(row => {
+        const { id, serial_number, Tunning_param, setting_id, ...rest } = row;
+        const value = Object.values(rest)[0]; // get the single value inside the rest object
+        const regmapEntry = regmapContent[Tunning_param]?.Value;
+        const isComment=Tunning_param.trim().startsWith("//");
+        const defaultparamValue= isComment ? null: (regmapEntry !== undefined ? regmapEntry : value);
+        return {
+            Tunning_param,
+            value,
+            defaultparamValue
+        };
+        });
+        console.log("simplifiedData",simplifiedData);
+        
+       const addSetfileResponse = await addSetfile(
         selectedModes,
         file.setting_id,
         setfilePrefix,
         generatedSetfileName,
         file.selectedmv
-      );
-  
-      let newFile = null;
-      if (addSetfileResponse?.files) {
-        addSetfileResponse.files.forEach((f) => {
-          updatedFiles[f.id] = f;
-          newFile = f; // Save the new file object
-        });
-        
-        // Remove the previous selected setfile and set the new one
-       // setSelectedSetFiles(updatedFiles);  // This ensures that only the new setfile is selected
-      }
-  
-      // Step 3: Update data for the new setfile (if needed)
-      // You can implement additional logic for updating data based on the new file here.
-  
-      // Step 4: Save changes for the new file
-      console.log(newFile, "addSetfileResponse.files");
-      if (Object.keys(editedCells).length > 0) {
-        await handleSaveEditedCells(newFile); // Pass correct file ID
-      }
-      if (deleted.length > 0) {
-        await handleSaveDeletedRows(newFile); // Use new file ID
-      }
-      if (newRows.length > 0) {
-        await handleSaveNewRows(newFile); // Use new file ID
-      }
-     
+      );   
       setChangesSaved(true);
       setLoading(false);
       alert("Setfile cloned and all changes saved successfully.");
@@ -547,7 +381,9 @@ const Genratesetfile = async () => {
   // console.log(finalRowData);
   // console.log(selectedSetFiles)
   // console.log( JSON.stringify(selectedSetFiles))
-  console.log(selectedModes);
+  // console.log(selectedModes);
+ // console.log(tableData);
+
 };
 
 // Call the function (make sure to define tableData before calling)
@@ -558,6 +394,7 @@ return (
           <div className="spinner"></div>
         </div>
       )}
+      
   <div style={{ padding: "20px", maxWidth: "100%", maxHeight: '83vh' }}>
        <button
       onClick={Genratesetfile}
@@ -802,4 +639,4 @@ return (
 );
 };
 
-export default CloneFIleDataTable;
+export default CloneFromAny;

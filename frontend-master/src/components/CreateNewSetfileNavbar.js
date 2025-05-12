@@ -38,7 +38,7 @@ const mergedGroups = [
   "//$MV6_Start[]"
 ];
 
-const CreateNewSetfileNavbar = ({style, setfilePrefix ,setSetfilePrefix,generatedSetfileName,setgeneratedSetfileName,selectedModes,setSelectedModes}) => {
+const CreateNewSetfileNavbar = ({style, setfilePrefix ,setSetfilePrefix,generatedSetfileName,setgeneratedSetfileName,selectedModes,setSelectedModes,selectedMkclTable,setSelectedMkclTable}) => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
   const projectName = localStorage.getItem("projectName") || "No Project Selected";
@@ -55,7 +55,7 @@ const CreateNewSetfileNavbar = ({style, setfilePrefix ,setSetfilePrefix,generate
   const [uniqueVariables, setUniqueVariables] = useState([]);
   const [isModeModalOpen, setModeModalOpen] = useState(false);
   const [mkclTables, setMkclTables] = useState([]);
-  const [selectedMkclTable, setSelectedMkclTable] = useState("");
+  //const [selectedMkclTable, setSelectedMkclTable] = useState("");
   const [ismkclModalOpen, setmkclModalOpen] = useState(false);
   const [setfileSuffix, setSetfileSuffix] = useState("");
   const [fps, setFps] = useState("");
@@ -182,6 +182,7 @@ useEffect(() => {
   }
   return (
     <nav style={style}>
+      {/* <div>{selectedMkclTable}</div> */}
     <nav className="create-new-setfile-navbar">
       <div className="create-new-setfile-navbar-top">
         <div className="create-new-setfile-user-project">
