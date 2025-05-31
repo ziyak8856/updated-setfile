@@ -1,5 +1,14 @@
 const pool = require("../config/db");
-
+const path = require("path");
+const fs = require("fs");
+const mysqldump = require('mysqldump');
+const simpleGit = require('simple-git');
+const ROOT_DIR = "C:\\Users\\DELL\\Desktop\\SETFILE__2.0";
+const UPLOAD_DIR = "C:\\Users\\DELL\\Desktop\\SETFILE__2.0\\PROJECTS";
+const DUMP_DIR = "C:\\Users\\DELL\\Desktop\\SETFILE__2.0\\DATABASE";
+const DB_NAME = "setfile_manager";
+const DB_USER = "root";
+const DB_PASS = "Ziya@8856";
 // Get all settings for a customer
 exports.getSettingsByCustomer = async (req, res) => {
   const { customerId } = req.params;
@@ -99,14 +108,14 @@ exports.addSetting = async (req, res) => {
   const connection = await pool.getConnection();
   console.log("xcxcz")
   try {
-    const { customer_id, name, table_name } = req.body;
-
-    if (!customer_id || !name || !table_name) {
+    const { customer_id, name, table_name,projectName,customerName } = req.body;
+    console.log(req.body)
+    if (!customer_id || !name || !table_name||!projectName||!customerName) {
       return res.status(400).json({ message: "Missing required fields" });
     }
-
+   console.log("hhhhhh")
     // Start transaction
-    await connection.beginTransaction();
+   // await connection.beginTransaction();
 
     // Step 1: Fetch mvvariables
     const [customerRows] = await connection.query(
@@ -118,7 +127,7 @@ exports.addSetting = async (req, res) => {
       await connection.rollback();
       return res.status(404).json({ message: "Customer not found" });
     }
-
+     
     const originalMvvariables = customerRows[0].mvvariables;
 
     let uniqueArray1 = [];
@@ -151,31 +160,76 @@ exports.addSetting = async (req, res) => {
       )
     `;
     await connection.query(createTableQuery);
-
-    // Step 3: Re-check mvvariables
-    const [recheckRows] = await connection.query(
-      "SELECT mvvariables FROM customer WHERE id = ?",
-      [customer_id]
-    );
-
-    const latestMvvariables = recheckRows[0]?.mvvariables;
-
-    if (latestMvvariables !== originalMvvariables) {
-      // Conflict detected, clean up
-      await connection.query(`DROP TABLE IF EXISTS \`${newSetting.table_name}\``);
-      await connection.rollback();
-      return res.status(409).json({ message: "Customer mvvariables changed during operation. Aborted." });
-    }
-
+    console.log("alll")
     // Step 4: Insert default variables into the new setting table
     if (uniqueArray1 && Array.isArray(uniqueArray1) && uniqueArray1.length > 0) {
       const insertQuery = `INSERT INTO \`${newSetting.table_name}\` (serial_number, Tunning_param) VALUES ?`;
       const values = uniqueArray1.map((param, index) => [index + 1, param]);
-      await connection.query(insertQuery, [values]);
+      try{
+        await connection.query(insertQuery, [values]);
+      }catch(err){
+        console.log("from",err);
+      }
+      
     }
 
+     const setdumpdir=path.join(DUMP_DIR,`setting.sql`);
+     const setdumpdir1=path.join(DUMP_DIR,`${newSetting.table_name}.sql`);
+     const setdatadir=path.join(UPLOAD_DIR,`${projectName}`,`${customerName}`,`${name}`);
+     console.log(setdatadir)
+     if (!fs.existsSync(setdatadir)) {
+      fs.mkdirSync(setdatadir, { recursive: true });
+    }
+    const t=String(newSetting.table_name).trim();
+    console.log(t);
+    setTimeout(async() => {
+      try {
+        await mysqldump({
+          connection: {
+            host: 'localhost',
+            user: DB_USER,
+            password: DB_PASS,
+            database: DB_NAME,
+          },
+          dump: {
+            tables: [newSetting.table_name],
+          },
+          dumpToFile: setdumpdir1,
+        });
+      } catch (err) {
+        console.log("eeee", err)
+      }
+    }, 10000);
+    try {
+      await mysqldump({
+        connection: {
+          host: 'localhost',
+          user: DB_USER,
+          password: DB_PASS,
+          database: DB_NAME,
+        },
+        dump: {
+          tables: ['setting'],
+        },
+        dumpToFile: setdumpdir,
+      });
+    } catch (err) {
+      console.log("eeee", err)
+    }
+    
+    // 10 seconds
+  
+
+    const git = simpleGit(ROOT_DIR);
+  
+  // 3) Commit and push changes
+  await git.add('.');
+  console.log("jcjsdbj")
+  await git.commit(`'${newSetting.table_name}' added`);
+  console.log()
+  await git.push();
     // Commit transaction
-    await connection.commit();
+   // await connection.commit();
 
     res.json({ message: "Setting added successfully", setting: newSetting });
 

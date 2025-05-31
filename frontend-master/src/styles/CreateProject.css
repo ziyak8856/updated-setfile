@@ -1,105 +1,312 @@
-.create-new-setfile-navbar {
-    background-color: #007bff;
-    padding: 0.75rem;
-    color: white;
-    border-bottom: 1px solid #0056b3;
+/* General Styling */
+body {
     font-family: Arial, sans-serif;
-    margin-top: -20px;
-  }
-  
-  .create-new-setfile-navbar-top {
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 20px;
+}
+
+/* Form Container */
+.project-form {
+    max-width: 900px;
+    margin: 0 auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+/* User Header */
+.user-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
-  }
-  
-  .create-new-setfile-user-project {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-  
-  .create-new-setfile-icon {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background-color: #fff;
-    padding: 2px;
-  }
-  
-  .create-new-setfile-navbar-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    margin-top: 0.4rem;
-  }
-  
-  .create-new-setfile-btn,
-  .create-new-setfile-select,
-  .create-new-setfile-input {
-    padding: 0.35rem 0.65rem;
-    font-size: 0.8rem;
-    border-radius: 4px;
-    border: none;
+    background-color: #e7ebf0; /* Primary blue background */
+    padding: 12px 20px;
+    border-radius: 8px;
+    color: rgb(0, 0, 0);
+    font-family: "Arial", sans-serif;
+    font-size: 16px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Username Styling */
+.username {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+/* Logout Button */
+.logout-btn {
     background-color: white;
     color: #007bff;
-    font-weight: 600;
-    transition: background-color 0.3s ease;
+    border: 2px solid white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
     cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.logout-btn:hover {
+    background-color: #0056b3;
+    color: white;
+    border-color: #0056b3;
+}
+
+/* Input Fields */
+/* Reduce the margin below h4 */
+h4 {
+    margin-bottom: 5px;  /* Reduce gap between heading and input */
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+}
+.h4 {
+    margin-bottom: 5px;  /* Reduce gap between heading and input */
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+}
+.mv-container {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background: #f9f9f9;
+    margin-top: 10px;
   }
-  
-  .create-new-setfile-select,
-  .create-new-setfile-input {
-    color: #007bff;
-  }
-  
-  .create-new-setfile-section {
-    background-color: #1e90ff;
-    border-radius: 4px;
-    padding: 0.75rem;
-    margin-top: 0.75rem;
-  }
-  
-  .create-new-setfile-dropdown-row,
-  .create-new-setfile-mode-row {
+  .mv-line {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    /* margin-top: 0.4rem; */
-  }
-  
-  .create-new-setfile-inputs {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 0.75rem;
-    margin-top: 0.4rem;
-  }
-  
-  .create-new-setfile-label {
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: white;
-    margin-bottom: 0.3rem;
-    display: inline-block;
-  }
-  
-  .create-new-setfile-display {
-    background-color: #e0e0e0;
-    padding: 0.6rem 0.9rem;
-    border-radius: 5px;
+    margin: 5px 0;
+    font-family: "Arial", sans-serif;
+    font-size: 16px;
     font-weight: bold;
-    font-size: 0.9rem;
     color: #333;
-    word-break: break-word;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
-    margin-top: 0.4rem;
   }
+  
+  .mv-line input[type="checkbox"] {
+    margin-right: 10px;
+  }
+/* Adjust input fields spacing */
+input[type="text"],
+input[type="file"] {
+    margin-top: 0;  /* Remove extra gap above input fields */
+    padding: 10px;
+    width: 90%;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+    margin-left: 5px;
+}
 
-  .combined {
+
+
+/* Customer Section */
+.customer-section h4 {
+    margin-bottom: 5px;
+}
+
+
+/* Customer Input Section */
+.customer-input {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Adjust space between input and button */
+    width: 50%;
+}
+
+/* Customer Input Textbox */
+.customer-textbox {
+    flex-grow: 1; /* Makes the textbox take most of the space */
+    padding: 10px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    min-width: 200px; /* Ensure a decent size */
+}
+
+/* Add Customer Button */
+.add-customer-btn {
+    font-size: 12px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    padding: 6px 12px;
+    height: 38PX; /* Ensure the button is the same height as the textbox */
+    /* min-width: 60px; /* Ensure small but clickable */
+    /* transition: background 0.3s ease-in-out; */ 
+    width: 100px; /* Ensure a decent size */
+}
+
+.add-customer-btn:hover {
+    background-color: #0056b3;
+}
+.project-title {
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 15px; /* Adjust spacing below the title */
+}
+
+.large-input {
+    flex-grow: 2;
+    padding: 12px;
+    font-size: 14px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    width: 50%;
+}
+
+/* Small Add Button */
+.small-btn {
+    font-size: 12px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    padding: 6px 12px;
+}
+
+.small-btn:hover {
+    background-color: #0056b3;
+}
+
+/* Customer List */
+.customer-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem;
-    /* margin-top: 0.4rem; */
-    margin-top: -20px;
-  }
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.customer-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background-color: #e9ecef;
+    padding: 6px 10px;
+    border-radius: 12px;
+    font-size: 14px;
+    color: #333;
+    font-weight: 500;
+}
+
+/* Small Remove Button */
+.remove-btn {
+    background: none;
+    border: none;
+    font-size: 14px;
+    color: red;
+    cursor: pointer;
+    padding: 0;
+}
+
+.remove-btn:hover {
+    color: darkred;
+}
+
+/* Radio Button Section */
+.radio-section {
+    display: flex;
+    gap: 20px;
+}
+
+.radio-section label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 14px;
+}
+
+/* File Upload */
+.file-upload {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.submit-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+/* Submit Button */
+.submit-button {
+    padding: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    background-color: #28a745; /* Green */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 200px;
+    text-align: center;
+    transition: background 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Hover Effect */
+.submit-button:hover {
+    background-color: #218838; /* Darker Green */
+}
+
+/* Disabled State */
+.submit-button:disabled {
+    background-color: #6c757d; /* Grey */
+    cursor: not-allowed;
+}
+
+/* Full-page Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6); /* Dark overlay */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+/* Spinner */
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid white;
+    border-top: 5px solid #28a745; /* Green */
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+/* Error Message */
+.error-message {
+    color: #721c24;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
+    font-weight: bold;
+    text-align: center;
+    width: 200px;
+    align-self: center;
+}
+
+/* Keyframes for Spinner */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

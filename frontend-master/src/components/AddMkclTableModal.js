@@ -20,11 +20,11 @@ const AddMkclTableModal = ({ isOpen, onClose, projectName, customerName, custome
       const tableName = `${projectName}_${updatedCustomerName}_${interfaceType}_${clockRate}`;
       // Add new setting to database
       const naa=`${interfaceType}_${clockRate}`
-      await addSetting(customerId,naa,tableName);
+      await addSetting(customerId,naa,tableName,projectName,updatedCustomerName);
       alert("MKCL Table added successfully!");
       onClose(); // Close modal after successful submission
     } catch (error) {
-      console.error("Error handling MKCL Table addition:", error);
+      console.error("Error handling MKCL Table addition:", error.message);
       alert("An error occurred while adding the table. Please try again.");
     }
   };

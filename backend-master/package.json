@@ -16,7 +16,8 @@
     "express": "^4.21.2",
     "express-fileupload": "^1.5.1",
     "jsonwebtoken": "^9.0.2",
-    "mysql2": "^3.13.0"
+    "mysql2": "^3.13.0",
+    "mysqldump": "^3.2.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"
