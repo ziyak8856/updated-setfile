@@ -1,15 +1,55 @@
 const pool = require("../config/db");
 const path = require("path");
 const fs = require("fs");
-const mysqldump = require('mysqldump');
-const simpleGit = require('simple-git');
+const pathd="C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysqldump.exe"
 const ROOT_DIR = "C:\\Users\\DELL\\Desktop\\SETFILE__2.0";
 const UPLOAD_DIR = "C:\\Users\\DELL\\Desktop\\SETFILE__2.0\\PROJECTS";
 const DUMP_DIR = "C:\\Users\\DELL\\Desktop\\SETFILE__2.0\\DATABASE";
 const DB_NAME = "setfile_manager";
 const DB_USER = "root";
 const DB_PASS = "Ziya@8856";
+const { exec } = require("child_process");
 // Get all settings for a customer
+
+const runDump = (tableName, outputPath) => {
+  return new Promise((resolve, reject) => {
+    const cmd = `"${pathd}" --skip-extended-insert -u ${DB_USER} -p${DB_PASS} ${DB_NAME} ${tableName} > "${outputPath}"`;
+    
+    exec(cmd, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`mysqldump error for table ${tableName}:`, error);
+        return reject(error);
+      }
+      console.log(`✅ Dumped table ${tableName} to ${outputPath}`);
+      resolve();
+    });
+  });
+};
+const commitAndPushToGit = () => {
+  return new Promise((resolve, reject) => {
+    exec(`git -C "${ROOT_DIR}" add .`, (err) => {
+      if (err) {
+        console.error("❌ Git add failed:", err);
+        return reject(err);
+      }
+      exec(`git -C "${ROOT_DIR}" commit -m "Created project  with all related tables"`, (err) => {
+        if (err) {
+          console.error("❌ Git commit failed:", err);
+          return reject(err);
+        }
+        exec(`git -C "${ROOT_DIR}" push`, (err) => {
+          if (err) {
+            console.error("❌ Git push failed:", err);
+            return reject(err);
+          }
+          console.log("✅ Git commit and push completed successfully.");
+          resolve();
+        });
+      });
+    });
+  });
+};
+
 exports.getSettingsByCustomer = async (req, res) => {
   const { customerId } = req.params;
 
@@ -106,16 +146,15 @@ exports.addSettings = async (req, res) => {
 };
 exports.addSetting = async (req, res) => {
   const connection = await pool.getConnection();
-  console.log("xcxcz")
   try {
-    const { customer_id, name, table_name,projectName,customerName } = req.body;
-    console.log(req.body)
-    if (!customer_id || !name || !table_name||!projectName||!customerName) {
+    const { customer_id, name, table_name, projectName, customerName } = req.body;
+    console.log(req.body);
+
+    if (!customer_id || !name || !table_name || !projectName || !customerName) {
       return res.status(400).json({ message: "Missing required fields" });
     }
-   console.log("hhhhhh")
-    // Start transaction
-   // await connection.beginTransaction();
+
+    await connection.beginTransaction();
 
     // Step 1: Fetch mvvariables
     const [customerRows] = await connection.query(
@@ -127,7 +166,7 @@ exports.addSetting = async (req, res) => {
       await connection.rollback();
       return res.status(404).json({ message: "Customer not found" });
     }
-     
+
     const originalMvvariables = customerRows[0].mvvariables;
 
     let uniqueArray1 = [];
@@ -152,6 +191,7 @@ exports.addSetting = async (req, res) => {
       [settingId]
     );
 
+    // Step 3: Create table if not exists
     const createTableQuery = `
       CREATE TABLE IF NOT EXISTS \`${newSetting.table_name}\` (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -160,82 +200,47 @@ exports.addSetting = async (req, res) => {
       )
     `;
     await connection.query(createTableQuery);
-    console.log("alll")
+
     // Step 4: Insert default variables into the new setting table
-    if (uniqueArray1 && Array.isArray(uniqueArray1) && uniqueArray1.length > 0) {
+    if (uniqueArray1.length > 0) {
       const insertQuery = `INSERT INTO \`${newSetting.table_name}\` (serial_number, Tunning_param) VALUES ?`;
       const values = uniqueArray1.map((param, index) => [index + 1, param]);
-      try{
-        await connection.query(insertQuery, [values]);
-      }catch(err){
-        console.log("from",err);
-      }
-      
-    }
 
-     const setdumpdir=path.join(DUMP_DIR,`setting.sql`);
-     const setdumpdir1=path.join(DUMP_DIR,`${newSetting.table_name}.sql`);
-     const setdatadir=path.join(UPLOAD_DIR,`${projectName}`,`${customerName}`,`${name}`);
-     console.log(setdatadir)
-     if (!fs.existsSync(setdatadir)) {
-      fs.mkdirSync(setdatadir, { recursive: true });
-    }
-    const t=String(newSetting.table_name).trim();
-    console.log(t);
-    setTimeout(async() => {
       try {
-        await mysqldump({
-          connection: {
-            host: 'localhost',
-            user: DB_USER,
-            password: DB_PASS,
-            database: DB_NAME,
-          },
-          dump: {
-            tables: [newSetting.table_name],
-          },
-          dumpToFile: setdumpdir1,
-        });
+        await connection.query(insertQuery, [values]);
       } catch (err) {
-        console.log("eeee", err)
+        console.error("Error inserting default variables:", err);
+        await connection.rollback();
+        return res.status(500).json({ message: "Failed to insert default variables", error: err.message });
       }
-    }, 10000);
-    try {
-      await mysqldump({
-        connection: {
-          host: 'localhost',
-          user: DB_USER,
-          password: DB_PASS,
-          database: DB_NAME,
-        },
-        dump: {
-          tables: ['setting'],
-        },
-        dumpToFile: setdumpdir,
-      });
-    } catch (err) {
-      console.log("eeee", err)
     }
+    await connection.commit();
+    const settingdir=path.join(UPLOAD_DIR, projectName, customerName, name);
+    if (!fs.existsSync(settingdir)) {
+      fs.mkdirSync(settingdir, { recursive: true });
+    }
+       // SQL Dumps
+       try {
+             await runDump("setting", path.join(DUMP_DIR, `setting.sql`));
+             await runDump(newSetting.table_name, path.join(DUMP_DIR, `${newSetting.table_name}.sql`));
+            console.log("✅ All dumps completed successfully.");
+          } catch (error) {
+            console.error("❌ Error during dumping tables:", error);
+          }
+        // Git push
+       commitAndPushToGit()
+      .then(() => console.log("Done"))
+      .catch(err => console.error("Error:", err));
     
-    // 10 seconds
-  
-
-    const git = simpleGit(ROOT_DIR);
-  
-  // 3) Commit and push changes
-  await git.add('.');
-  console.log("jcjsdbj")
-  await git.commit(`'${newSetting.table_name}' added`);
-  console.log()
-  await git.push();
-    // Commit transaction
-   // await connection.commit();
-
     res.json({ message: "Setting added successfully", setting: newSetting });
 
   } catch (err) {
     console.error("Error in addSetting:", err);
-    await connection.rollback(); // Rollback transaction on error
+    try {
+      await connection.rollback();
+    } catch (rollbackErr) {
+      console.error("Rollback error:", rollbackErr);
+    }
     res.status(500).json({ message: "Database error", error: err.message });
   } finally {
     connection.release();

@@ -2,10 +2,9 @@ const pool = require("../config/db");
 const path = require("path");
 const fs = require("fs");
 const { exec } = require("child_process");
-const util = require("util");
-const mysqldump = require('mysqldump');
-const simpleGit = require('simple-git');
-const execAsync = util.promisify(exec);
+
+
+
 // Define upload directory
     const mergedGroups = [/* ... your MV4 and MV6 strings ... */
     "//$MV4[MCLK:[*MCLK*],mipi_phy_type:[*PHY_TYPE*],mipi_lane:[*PHY_LANE*],mipi_datarate:[*MIPI_DATA_RATE*]]",
@@ -49,11 +48,6 @@ const execAsync = util.promisify(exec);
 const ROOT_DIR = "C:\\Users\\DELL\\Desktop\\SETFILE__2.0";
 const UPLOAD_DIR = "C:\\Users\\DELL\\Desktop\\SETFILE__2.0\\PROJECTS";
 const DUMP_DIR = "C:\\Users\\DELL\\Desktop\\SETFILE__2.0\\DATABASE";
-const projectDumpPath = path.join(DUMP_DIR, "project.sql");
-const customerDumpPath=path.join(DUMP_DIR,"customer.sql");
-const settingDumpPath=path.join(DUMP_DIR,"setting.sql");
-const projectTable = "project";
-const customerTable="customer";
 const pathd="C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysqldump.exe"
 const DB_NAME = "setfile_manager";
 const DB_USER = "root";
@@ -230,18 +224,18 @@ exports.createFullProject = async (req, res) => {
     await conn.commit();
 
     // SQL Dumps
-    try {
-  await runDump("project", path.join(DUMP_DIR, `project.sql`));
-  await runDump("customer", path.join(DUMP_DIR, `customer.sql`));
-  await runDump("setting", path.join(DUMP_DIR, `setting.sql`));
-  
-  for (const { table_name } of newSettings) {
-    await runDump(table_name, path.join(DUMP_DIR, `${table_name}.sql`));
-  }
-  console.log("✅ All dumps completed successfully.");
-} catch (error) {
-  console.error("❌ Error during dumping tables:", error);
-}
+          try {
+        await runDump("project", path.join(DUMP_DIR, `project.sql`));
+        await runDump("customer", path.join(DUMP_DIR, `customer.sql`));
+        await runDump("setting", path.join(DUMP_DIR, `setting.sql`));
+        
+        for (const { table_name } of newSettings) {
+          await runDump(table_name, path.join(DUMP_DIR, `${table_name}.sql`));
+        }
+        console.log("✅ All dumps completed successfully.");
+      } catch (error) {
+        console.error("❌ Error during dumping tables:", error);
+      }
     // Git push
    commitAndPushToGit()
   .then(() => console.log("Done"))
@@ -265,56 +259,61 @@ exports.createFullProject = async (req, res) => {
   }
 };
 
-
-
 exports.uploadRegmap = async (req, res) => {
+  const connection = await pool.getConnection();
   try {
     const { projectId, name } = req.body;
-   
+
     if (!projectId || !name) {
       return res.status(400).json({ message: "Project ID and name are required" });
     }
 
-    // **Step 1: Find the Project Folder**
     const projectDir = path.join(UPLOAD_DIR, name);
-    //console.log(projectDir);
     if (!fs.existsSync(projectDir)) {
       return res.status(404).json({ message: "Project directory not found" });
     }
-    console.log(projectDir);
-    // **Step 2: Remove Existing `.regmap.h` Files**
-    const files = fs.readdirSync(projectDir);
-    files.forEach((file) => {
-      if (file.endsWith("Regsmap.h")) {
-        fs.unlinkSync(path.join(projectDir, file));
-      }
-    });
 
     let regmapPath = "";
-
-   // **Step 3: Save the New Regmap File**
     if (req.files && req.files.regmap) {
       const regmapFile = req.files.regmap;
       regmapPath = path.join(projectDir, regmapFile.name);
+
+      // Overwrite existing file automatically
       await regmapFile.mv(regmapPath);
     } else {
       return res.status(400).json({ message: "No regmap file uploaded" });
     }
-    console.log("r"+regmapPath);
-    // **Step 4: Update Database**
-    await pool.query(`UPDATE project SET regmap_path = ? WHERE id = ?`, [regmapPath, projectId]);
 
+    // Start DB transaction
+    await connection.beginTransaction();
+
+    await connection.query(
+      `UPDATE project SET regmap_path = ? WHERE id = ?`,
+      [regmapPath, projectId]
+    );
+
+    await connection.commit();
+    // Git push
+   commitAndPushToGit()
+  .then(() => console.log("Done"))
+  .catch(err => console.error("Error:", err));
     res.json({
-      message: "Regmap updated successfully",
-      projectId: projectId,
+      message: "Regmap uploaded successfully",
+      projectId,
       projectName: name,
-      regmapPath: regmapPath,
+      regmapPath,
     });
 
   } catch (err) {
-    res.status(500).json({ message: "Database error", error: err.message });
+    console.error("Error uploading regmap:", err);
+    await connection.rollback();
+    res.status(500).json({ message: "Internal server error", error: err.message });
+  } finally {
+    connection.release();
   }
 };
+
+
 
 // Get all projects
 exports.getProjects = async (req, res) => {
