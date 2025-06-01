@@ -1,5 +1,5 @@
 const express = require("express");
-const { getSetFiles,getTableData,addRow,updateRow,deleteRow,markFileAsDeleted ,updateSelectedMV,addSetfile,clonesetfile} = require("../controllers/setfileController");
+const { getSetFiles,getTableData,addRow,updateMultipleRows,deleteallRow,markFileAsDeleted ,updateSelectedMV,addSetfile,clonesetfile} = require("../controllers/setfileController");
 
 const router = express.Router();
 const authMiddleware = require("../middlewares/authMiddleware");
@@ -9,8 +9,8 @@ const authMiddleware = require("../middlewares/authMiddleware");
 router.get("/getSetFiles", authMiddleware,getSetFiles);
 router.post("/get-table-data", authMiddleware,getTableData);
 router.post("/add-row", authMiddleware,addRow);
-router.post("/update-row", authMiddleware,updateRow);
-router.post("/delete-row", authMiddleware,deleteRow); 
+router.post("/update-row", authMiddleware,updateMultipleRows);
+router.post("/delete-row", authMiddleware,deleteallRow); 
 router.post("/mark-deleted",authMiddleware,markFileAsDeleted);
 router.post("/update-mv",authMiddleware,updateSelectedMV);
 router.post("/clone-from",authMiddleware,clonesetfile);

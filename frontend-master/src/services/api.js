@@ -218,11 +218,11 @@ export const fetchTableData = async (tableName, columnName) => {
 };
  
 
-export const updateRowAPI = async (tableName, id, columnName, value,regmapEntry) => {
+export const updateRowAPI = async (updates) => {
   try {
     const response = await axios.post(
       `${API_BASE_URL}/setfile/update-row`,
-      { tableName, id, columnName, value,regmapEntry },
+      updates,
       {
         headers: { ...getAuthHeaders().headers },
       }
@@ -234,12 +234,12 @@ export const updateRowAPI = async (tableName, id, columnName, value,regmapEntry)
   }
 };
 
-export const addRowAPI = async (tableName, referenceId, position, rowData,defaultValue) => {
+export const addRowAPI = async (insertions) => {
   
   try {
     const response = await axios.post(
       `${API_BASE_URL}/setfile/add-row`,
-      { tableName, referenceId, position, rowData,defaultValue },
+      insertions,
       {
         headers: { ...getAuthHeaders().headers },
       }
@@ -283,11 +283,11 @@ export const fetchRegmap = async (projectId) => {
   }
 };
 
-export const deleteRowAPI = async (tableName, rowId) => {
+export const deleteRowAPI = async (deletions) => {
   try {
     const response = await axios.post(
       `${API_BASE_URL}/setfile/delete-row`,
-      { tableName, rowId },
+      deletions,
       {
         headers: { ...getAuthHeaders().headers },
       }

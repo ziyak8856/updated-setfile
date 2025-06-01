@@ -51,166 +51,192 @@ exports.getSetFiles = async (req, res) => {
   }
 };
 exports.addRow = async (req, res) => {
-  const { tableName, referenceId, position, rowData, defaultValue } = req.body;
-   console.log("Received request to add row:", req.body);
-  try {
-    // Step 1: Fetch serial_number of the reference row
-    const [refRow] = await pool.query(
-      `SELECT serial_number FROM \`${tableName}\` WHERE id = ?`,
-      [referenceId]
-    );
-    if (refRow.length === 0) {
-      return res.status(404).json({ error: "Reference row not found" });
-    }
-
-    // Step 2: Calculate new serial number
-    let newSerial = refRow[0].serial_number ;
-
-    // Step 3: Shift serial_numbers to make space
-    await pool.query(
-      `UPDATE \`${tableName}\` SET serial_number = serial_number + 1 WHERE serial_number >= ?`,
-      [newSerial]
-    );
-
-    // Step 4: Fetch full column list from the table
-    const [columnsInfo] = await pool.query(`SHOW COLUMNS FROM \`${tableName}\``);
-    const allColumns = columnsInfo.map(col => col.Field);
-
-    // Step 5: Prepare full row using rowData + defaultValue
-    const newRow = {};
-    for (const col of allColumns) {
-      if (col === 'id' || col === 'serial_number') continue;
-      newRow[col] = rowData[col] !== undefined ? rowData[col] : defaultValue;
-    }
-
-    // Step 6: Generate insert query
-    const insertCols = Object.keys(newRow).map(col => `\`${col}\``).join(", ");
-    const insertVals = Object.values(newRow);
-    const placeholders = insertVals.map(() => "?").join(", ");
-
-    const [insertResult] = await pool.query(
-      `INSERT INTO \`${tableName}\` (${insertCols}, serial_number) VALUES (${placeholders}, ?)`,
-      [...insertVals, newSerial]
-    );
-
-    // Step 7: Fetch and return the inserted row
-    const [newRowData] = await pool.query(
-      `SELECT * FROM \`${tableName}\` WHERE id = ?`,
-      [insertResult.insertId]
-    );
-
-    res.json({ success: true, newRow: newRowData[0] });
-
-  } catch (error) {
-    console.error("Add row error:", error);
-    res.status(500).json({ error: "Failed to add row" });
-  }
-};
-
-exports.updateRow = async (req, res) => {
-  const { tableName, id, columnName, value, regmapEntry } = req.body;
-  console.log("Received request to update row:", req.body);
-
-  try {
-    // Case: Tunning_param + regmapEntry means update all other relevant columns too
-    if (columnName === "Tunning_param" && regmapEntry !== undefined) {
-      const [columnsResult] = await pool.query(`SHOW COLUMNS FROM \`${tableName}\``);
-      const allColumns = columnsResult.map(col => col.Field);
-
-      // Exclude non-editable column
-      const columnsToUpdate = allColumns.filter(col =>
-        !["id", "serial_number", "Tunning_param"].includes(col)
-      );
-
-      // Construct SET clause
-      const updateFields = ["`Tunning_param` = ?"];
-      const updateValues = [value];
-
-      for (const col of columnsToUpdate) {
-        updateFields.push(`\`${col}\` = ?`);
-        updateValues.push(regmapEntry);
-      }
-
-      updateValues.push(id); // WHERE id = ?
-
-      const [updateResult] = await pool.query(
-        `UPDATE \`${tableName}\` SET ${updateFields.join(", ")} WHERE id = ?`,
-        updateValues
-      );
-
-      if (updateResult.affectedRows === 0) {
-        return res.status(404).json({ error: "Row not found" });
-      }
-
-      return res.json({ success: true, updatedAll: true });
-    }
-
-    // Fallback: just update the one column normally
-    const [updateResult] = await pool.query(
-      `UPDATE \`${tableName}\` SET \`${columnName}\` = ? WHERE id = ?`,
-      [value, id]
-    );
-
-    if (updateResult.affectedRows === 0) {
-      return res.status(404).json({ error: "Row not found" });
-    }
-
-    return res.json({ success: true });
-  } catch (error) {
-    console.error("Update row error:", error);
-    return res.status(500).json({ error: "Failed to update row" });
-  }
-}; // Assuming db.js is in the parent directory
-
-exports.deleteRow = async (req, res) => {
-  const { tableName, rowId } = req.body;
-  console.log("Received request to delete row:", req.body);
-
-  if (!tableName || !rowId) {
-    return res.status(400).json({ success: false, error: "Missing table name or rowId" });
+  const insertions = req.body; // array of rows to insert
+  if (!Array.isArray(insertions) || insertions.length === 0) {
+    return res.status(400).json({ success: false, error: "No insertions provided" });
   }
 
   const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const insertedResults = [];
 
+    for (const insertion of insertions) {
+      const { tableName, refId, position, data, setting_id, tempId } = insertion;
+
+      // 1. Get serial_number of reference row
+      const [refRows] = await connection.query(
+        `SELECT serial_number FROM \`${tableName}\` WHERE id = ?`,
+        [refId]
+      );
+
+      if (refRows.length === 0) {
+        throw new Error(`Reference row not found in table ${tableName}`);
+      }
+
+      let newSerial = refRows[0].serial_number;
+     // if (position === "below") newSerial += 1; // shift serials after ref if 'below'
+
+      // 2. Shift existing rows' serial numbers
+      await connection.query(
+        `UPDATE \`${tableName}\` SET serial_number = serial_number + 1 WHERE serial_number >= ?`,
+        [newSerial]
+      );
+
+      // 3. Fetch all column names
+      const [columnsInfo] = await connection.query(`SHOW COLUMNS FROM \`${tableName}\``);
+      const allColumns = columnsInfo.map(col => col.Field);
+
+      // 4. Construct row to insert (merge data and default nulls)
+      const rowToInsert = {};
+      for (const col of allColumns) {
+        if (["id", "serial_number"].includes(col)) continue;
+        rowToInsert[col] = data[col] !== undefined ? data[col] : null;
+      }
+
+      const insertCols = Object.keys(rowToInsert).map(col => `\`${col}\``).join(", ");
+      const insertVals = Object.values(rowToInsert);
+      const placeholders = insertVals.map(() => "?").join(", ");
+
+      // 5. Insert new row with computed serial
+      const [insertResult] = await connection.query(
+        `INSERT INTO \`${tableName}\` (${insertCols}, serial_number) VALUES (${placeholders}, ?)`,
+        [...insertVals, newSerial]
+      );
+
+      // 6. Retrieve inserted row
+      const [newRowData] = await connection.query(
+        `SELECT * FROM \`${tableName}\` WHERE id = ?`,
+        [insertResult.insertId]
+      );
+
+      insertedResults.push({
+        newRow: newRowData[0],
+        tempId,
+        setting_id
+      });
+    }
+
+    await connection.commit();
+    res.json({ success: true, newRows: insertedResults });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Batch add rows error:", error);
+    res.status(500).json({ success: false, error: "Failed to add one or more rows" });
+  } finally {
+    connection.release();
+  }
+};
+
+exports.updateMultipleRows = async (req, res) => {
+  const updates = req.body; // Expecting an array of updates
+  console.log("Received batch update request:", updates);
+
+  const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
 
-    // Step 1: Get the serial_number of the row to delete
-    const [rows] = await connection.query(
-      `SELECT serial_number FROM \`${tableName}\` WHERE id = ?`,
-      [rowId]
-    );
+    for (const update of updates) {
+      const { tableName, rowId, colName, value, regmap } = update;
 
-    if (rows.length === 0) {
-      await connection.release();
-      return res.status(404).json({ success: false, error: "Row not found" });
+      // If the column is "Tunning_param" and regmap exists, update all relevant fields
+      if (colName === "Tunning_param" && regmap !== undefined) {
+        const [columnsResult] = await connection.query(`SHOW COLUMNS FROM \`${tableName}\``);
+        const allColumns = columnsResult.map(col => col.Field);
+
+        const columnsToUpdate = allColumns.filter(col =>
+          !["id", "serial_number", "Tunning_param"].includes(col)
+        );
+
+        const updateFields = ["`Tunning_param` = ?"];
+        const updateValues = [value];
+
+        for (const col of columnsToUpdate) {
+          updateFields.push(`\`${col}\` = ?`);
+          updateValues.push(regmap);
+        }
+
+        updateValues.push(rowId);
+
+        await connection.query(
+          `UPDATE \`${tableName}\` SET ${updateFields.join(", ")} WHERE id = ?`,
+          updateValues
+        );
+      } else {
+        // Normal column update
+        await connection.query(
+          `UPDATE \`${tableName}\` SET \`${colName}\` = ? WHERE id = ?`,
+          [value, rowId]
+        );
+      }
     }
-
-    const deletedSerial = rows[0].serial_number;
-
-    // Step 2: Delete the row
-    const [deleteResult] = await connection.query(
-      `DELETE FROM \`${tableName}\` WHERE id = ?`,
-      [rowId]
-    );
-
-    if (deleteResult.affectedRows === 0) {
-      await connection.rollback();
-      return res.status(404).json({ success: false, error: "Row not found during delete" });
-    }
-
-    // Step 3: Update serial numbers of remaining rows
-    await connection.query(
-      `UPDATE \`${tableName}\` SET serial_number = serial_number - 1 WHERE serial_number > ?`,
-      [deletedSerial]
-    );
 
     await connection.commit();
-    res.json({ success: true });
+    return res.json({ success: true, message: "All updates applied successfully." });
   } catch (error) {
     await connection.rollback();
-    console.error("Delete row error:", error);
-    res.status(500).json({ success: false, error: "Failed to delete row" });
+    console.error("Batch update error:", error);
+    return res.status(500).json({ error: "Failed to apply batch updates" });
+  } finally {
+    connection.release();
+  }
+};
+// Assuming db.js is in the parent directory
+
+exports.deleteallRow = async (req, res) => {
+ const deletions = req.body; // [{ tableName, rowId }, ...]
+
+  if (!Array.isArray(deletions) || deletions.length === 0) {
+    return res.status(400).json({ success: false, error: "Invalid or empty deletions array" });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    for (const { tableName, rowId } of deletions) {
+      if (!tableName || !rowId) {
+        await connection.rollback();
+        return res.status(400).json({ success: false, error: "Missing tableName or rowId in one of the deletions" });
+      }
+
+      // Step 1: Get serial_number of the row to delete
+      const [rows] = await connection.query(
+        `SELECT serial_number FROM \`${tableName}\` WHERE id = ?`,
+        [rowId]
+      );
+
+      if (rows.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({ success: false, error: `Row with ID ${rowId} not found in ${tableName}` });
+      }
+
+      const deletedSerial = rows[0].serial_number;
+
+      // Step 2: Delete the row
+      const [deleteResult] = await connection.query(
+        `DELETE FROM \`${tableName}\` WHERE id = ?`,
+        [rowId]
+      );
+
+      if (deleteResult.affectedRows === 0) {
+        await connection.rollback();
+        return res.status(404).json({ success: false, error: `Failed to delete row with ID ${rowId}` });
+      }
+
+      // Step 3: Update serial_number for remaining rows
+      await connection.query(
+        `UPDATE \`${tableName}\` SET serial_number = serial_number - 1 WHERE serial_number > ?`,
+        [deletedSerial]
+      );
+    }
+
+    await connection.commit();
+    return res.json({ success: true });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Batch delete error:", error);
+    return res.status(500).json({ success: false, error: "Failed to delete rows" });
   } finally {
     connection.release();
   }

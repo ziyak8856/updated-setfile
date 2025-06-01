@@ -262,39 +262,31 @@ const handleAddRow = (refRow) => {
 };
 
 const handleSaveEditedCells = async () => {
-  for (const rowId in editedCells) {
-    const changes = editedCells[rowId];
-    const settingId = tableData.find(row => row.id == rowId)?.setting_id;
-    const tableName = tableNames[settingId];
-    if (!tableName) continue;
+ const updates = [];
 
-    for (const colName in changes) {
-        
-        const regmapEntry = regmapContent[changes[colName]]?.Value;
-        if(colName=="Tunning_param"&&regmapEntry==null){
-          const v=changes[colName];
-          console.log(v);
-          if((v[0]=="4"||v[0]=="2")&&v.length==8){
-            await updateRowAPI(tableName, rowId, colName, changes[colName], regmapEntry);
-            alert("Edited cells saved successfully!");
-            return;
-          }else{
-            alert(`Address sholud start from 2 or 4 check length :${tableData.find(row=>row.id==rowId)?.serial_number}`);
-            return;
-          }
-          alert(`Tunning Not found in regmap at :${tableData.find(row=>row.id==rowId)?.serial_number}`);
-          return;
-        }else{
-          await updateRowAPI(tableName, rowId, colName, changes[colName], regmapEntry);
-        }
-      
-    }
+for (const rowId in editedCells) {
+  const changes = editedCells[rowId];
+  const settingId = tableData.find(row => row.id == rowId)?.setting_id;
+  const tableName = tableNames[settingId];
+  if (!tableName) continue;
+
+  for (const colName in changes) {
+    const regmapEntry = regmapContent[changes[colName]]?.Value;
+    const value = changes[colName] ;
+    updates.push({
+      tableName,
+      rowId,
+      colName,
+      value,
+      regmapEntry,
+    });
   }
-
+}
+// Send all updates in one API call
+await updateRowAPI(updates);
   setEditedCells({});
   alert("Edited cells saved successfully!");
 };
-
 const handleSaveNewRows = async () => {
   const unsavedValidRows = [];
 
@@ -309,6 +301,8 @@ const handleSaveNewRows = async () => {
 
     unsavedValidRows.push({ newRow, rowInState });
   }
+
+  const insertions = [];
 
   for (const { newRow, rowInState } of unsavedValidRows) {
     const refRow = tableData.find(r => r.id === newRow.refId);
@@ -337,29 +331,44 @@ const handleSaveNewRows = async () => {
       ? parseInt(newRow.refId)
       : newRow.refId;
 
-    const response = await addRowAPI(
+    insertions.push({
       tableName,
-      adjustedRefId,
-      newRow.position,
-      finalRowData,
-      regmapValue
-    );
-
-    if (response?.success && response?.newRow) {
-      const actualRow = { ...response.newRow, setting_id: rowInState.setting_id };
-
-      setTableData(prev => {
-        const index = prev.findIndex(row => row.id === newRow.tempId);
-        const updated = [...prev];
-        updated.splice(index, 1, actualRow);
-        return updated;
-      });
-    }
+      refId: adjustedRefId,
+      position: newRow.position,
+      data: finalRowData,
+      setting_id: rowInState.setting_id,
+      tempId: newRow.tempId
+    });
   }
 
-  setNewRows([]);
-  alert("New rows saved successfully!");
+  if (insertions.length === 0) return;
+
+  try {
+    const response = await addRowAPI(insertions); // POST array to backend
+
+    if (response?.success && response?.newRows) {
+      setTableData(prev => {
+        let updated = [...prev];
+        for (const { newRow, tempId, setting_id } of response.newRows) {
+          const index = updated.findIndex(r => r.id === tempId);
+          if (index !== -1) {
+            updated[index] = { ...newRow, setting_id };
+          }
+        }
+        return updated;
+      });
+
+      setNewRows([]);
+      alert("New rows saved successfully!");
+    } else {
+      alert("Some rows failed to save. Please try again.");
+    }
+  } catch (error) {
+    console.error("Error during batch insertion:", error);
+    alert("An error occurred while saving new rows.");
+  }
 };
+
 
 // \U0001f9e0 Unified Save Button
 const handleDeleteRow = (rowId) => {
@@ -388,26 +397,32 @@ const handleDeleteRow = (rowId) => {
 const handleSaveDeletedRows = async () => {
   if (deleted.length === 0) return;
 
-  let allSuccessful = true;
+  const deletions = [];
 
   for (const row of deleted) {
     const tableName = tableNames[row.setting_id];
     if (!tableName) continue;
-    console.log(tableName, "tableName");
-    console.log(row.id, "rowId");
-    const response = await deleteRowAPI(tableName, row.id);
 
-    if (!response?.success) {
-      allSuccessful = false;
-      console.error(`Failed to delete row with ID ${row.id}`, response);
-    }
+    deletions.push({
+      tableName,
+      rowId: row.id
+    });
   }
 
-  if (allSuccessful) {
-    setDeletedRows([]);
-    alert("All deletions saved to backend!");
-  } else {
-    alert("Some deletions failed. Please try again.");
+  if (deletions.length === 0) return;
+
+  try {
+    const response = await deleteRowAPI(deletions);
+    if (response?.success) {
+      setDeletedRows([]);
+      alert("All deletions saved to backend!");
+    } else {
+      console.error("Batch delete failed:", response);
+      alert("Some deletions failed. Please try again.");
+    }
+  } catch (error) {
+    console.error("Error during batch deletion:", error);
+    alert("An error occurred while deleting rows.");
   }
 };
 
