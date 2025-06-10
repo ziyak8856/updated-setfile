@@ -9,6 +9,13 @@ const GlobalFile = ({ globalData, setGlobalData }) => {
   const [focusedRow, setFocusedRow] = useState(null);
   const inputRef = useRef(null);
 
+  // Default file content
+  const defaultFileContent = `// This file is generated using Setfile Manager 2.0
+    // Global File Start. Add your global variables here.
+    WRITE #DEFAULT_PARAM1 0000
+    WRITE #DEFAULT_PARAM2 0000`;
+  const defaultFileName = "default.nset";
+
   useEffect(() => {
     const fetchAndSetRegmap = async () => {
       const projectId = localStorage.getItem("projectId");
@@ -22,6 +29,16 @@ const GlobalFile = ({ globalData, setGlobalData }) => {
       }
     };
     fetchAndSetRegmap();
+
+    // Set default file if no file is selected
+    if (!selectedFile) {
+      setGlobalData((prev) => ({
+        ...prev,
+        fileName: defaultFileName,
+        selectedFile: defaultFileContent,
+      }));
+      parseUploadedFile(defaultFileContent);
+    }
   }, []);
 
   useEffect(() => {
@@ -40,6 +57,7 @@ const GlobalFile = ({ globalData, setGlobalData }) => {
     const text = await file.text();
     if (text) {
       setGlobalData((prev) => ({ ...prev, selectedFile: text }));
+      parseUploadedFile(text);
     }
   };
 
@@ -48,9 +66,8 @@ const GlobalFile = ({ globalData, setGlobalData }) => {
     const result = {};
 
     lines.forEach((line) => {
-      if (line.startsWith("//WRITE")) return;
       if (line.startsWith("//")) {
-        result[line] = "";
+        result[line.trim()] = "";
       } else {
         const regex = /WRITE\s+#(\w+)\s+(.+)/;
         const match = line.match(regex);
@@ -64,19 +81,39 @@ const GlobalFile = ({ globalData, setGlobalData }) => {
     setGlobalData((prev) => ({
       ...prev,
       regmapContent: result,
-      tableData: Object.keys(result).map((key) => ({
-        Tunning_param: key,
-        DefaultValue: regmapContent?.[key]?.Value ?? "-",
-        Value: result[key],
-      })),
+      tableData: lines.map((line) => {
+        if (line.startsWith("//")) {
+          return {
+            Tunning_param: line.trim(),
+            DefaultValue: "-",
+            Value: "",
+          };
+        }
+        const regex = /WRITE\s+#(\w+)\s+(.+)/;
+        const match = line.match(regex);
+        if (match) {
+          const [_, Name, hexVal] = match;
+          return {
+            Tunning_param: Name,
+            DefaultValue: regmapContent?.[Name]?.Value ?? "-",
+            Value: hexVal,
+          };
+        }
+        return null;
+      }).filter((row) => row !== null),
     }));
   };
 
   const handleChange = (e, rowIndex, colName) => {
     const newValue = e.target.value;
+    
     setGlobalData((prev) => {
       const updatedTable = [...prev.tableData];
       updatedTable[rowIndex][colName] = newValue;
+      if (colName === "Tunning_param") {
+        updatedTable[rowIndex]["DefaultValue"] = regmapContent?.[newValue]?.Value ?? "-";
+        updatedTable[rowIndex]["Value"] = regmapContent?.[newValue]?.Value ?? "-";
+      }
       return { ...prev, tableData: updatedTable };
     });
   };
@@ -125,22 +162,44 @@ const GlobalFile = ({ globalData, setGlobalData }) => {
   };
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div style={{ padding: "0px" }}>
       <h3 style={{ display: "inline-block", marginRight: "10px" }}>Global Settings</h3>
-      <input type="file" accept=".nset" onChange={handleFileUpload} />
-      <button onClick={() => parseUploadedFile(selectedFile)} style={{ marginLeft: "10px" }}>
-        Parse File
+      {/* <h5 style={{ marginTop: "-10px", color: "#D36A6C"}}>For new global (if not exist) create a empty file, add initial comment and upload.</h5> */}
+      <input type="file" accept=".nset" onChange={handleFileUpload} style={{cursor: "pointer"}} />
+      <button style={{backgroundColor: "#007bff",
+                      color: "#fff",
+                      border: "2px solid white",
+                      padding: "5px 5px", /* Smaller padding */
+                      borderRadius: "5px",
+                      fontSize: "12px", /* Reduced font size */
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                      transition: "all 0.3s ease",
+                      marginLeft: "10px" }} 
+            onClick={() => parseUploadedFile(selectedFile)}>
+        Show File Data
       </button>
-      <button onClick={generateDownloadFile} style={{ marginLeft: "10px" }}>
+      <button onClick={generateDownloadFile} style={{ 
+                      backgroundColor: "#007bff",
+                      color: "#fff",
+                      border: "2px solid white",
+                      padding: "5px 5px", /* Smaller padding */
+                      borderRadius: "5px",
+                      fontSize: "12px", /* Reduced font size */
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                      transition: "all 0.3s ease",
+                      marginLeft: "10px"
+                    }}>
         Download Updated File
       </button>
 
       <div style={{ maxHeight: "78vh", overflowY: "auto", marginTop: "20px" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", border: "1px solid #ddd" }}>
-          <thead style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "#f1f1f1" }}>
+          <thead style={{ position: "sticky", top: 0, zIndex: 1, backgroundColor: "rgb(221, 221, 221)" }}>
             <tr>
               <th style={{ width: "50px" }}></th> {/* for + button */}
-              <th style={{ padding: "12px", border: "1px solid #ddd" }}>Tunning_param</th>
+              <th style={{ padding: "12px", border: "1px solid #ddd", minWidth: "400px" }}>Tunning_param</th>
               <th style={{ padding: "12px", border: "1px solid #ddd" }}>DefaultValue</th>
               <th style={{ padding: "12px", border: "1px solid #ddd" }}>Value</th>
               <th style={{ padding: "12px", border: "1px solid #ddd" }}>Actions</th>
@@ -149,10 +208,13 @@ const GlobalFile = ({ globalData, setGlobalData }) => {
           <tbody>
             {tableData.map((row, index) => (
               <tr key={index}>
-                <td style={{ border: "1px solid #ddd", textAlign: "center" }}>
+                <td style={{ textAlign: "center", position: "relative", minWidth: "30px" }}>
                   <button
                     onClick={() => handleAddRow(index)}
                     style={{
+                      position: "absolute",
+                      bottom: "-12px",
+                      right: "3px",
                       fontSize: "14px",
                       padding: "4px 8px",
                       borderRadius: "50%",

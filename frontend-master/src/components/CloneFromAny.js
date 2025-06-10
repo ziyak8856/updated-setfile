@@ -3,29 +3,77 @@ import {
   fetchTableNameBySettingId,
   fetchTableData,
   fetchRegmap,
-  addSetfile
+  getCustomerById,
+  cloneFromAny,
+  fetchProjectById
 } from "../services/api";
 import "../styles/FileData.css";
+const mergedGroups = [
+  "//$MV4[MCLK:[*MCLK*],mipi_phy_type:[*PHY_TYPE*],mipi_lane:[*PHY_LANE*],mipi_datarate:[*MIPI_DATA_RATE*]]",
+    "//$MV4_Sensor[fps:[*FPS*]]",
+    "//$MV4_CPHY_LRTE[enable:[*LRTE_EN*],longPacketSpace:2,shortPacketSpace:2]]",
+    "//$MV4_Scramble[enable:[*SCRAMBLE_EN*]]",
+    "//$MV4_MainData[width:[*WIDTH*],height:[*HEIGHT*],data_type:[*DATA_TYPE*],virtual_channel:[*MAIN_VC*]]",
+    "//$MV4_InterleavedData[isUsed:[*ILD_IS_USED_LCG*],width:[*ILD_WIDTH_LCG*],height:[*ILD_HEIGHT_LCG*],data_type:[*DATA_TYPE*],virtual_channel:[*ILD_LCG_VC*]]",
+    "//$MV4_InterleavedData[isUsed:[*ILD_IS_USED1*],width:[*ILD_WIDTH1*],height:[*ILD_HEIGHT1*],data_type:MIPI_RAW10 (0x2B),virtual_channel:[*ILD1_VC*]]",
+    "//$MV4_InterleavedData[isUsed:[*ILD_IS_USED2*],width:[*ILD_WIDTH2*],height:[*ILD_HEIGHT2*],data_type:MIPI_RAW10 (0x2B),virtual_channel:[*ILD2_VC*]]",
+    "//$MV4_InterleavedData[isUsed:[*ILD_ELG_IS_USED3*],width:[*WIDTH*],height:[*ILD_ELG_HEIGHT3*],data_type:Embedded_Data (0x12),virtual_channel:[*ILD3_ELG_VC*]]",
+    "//$MV4_InterleavedData[isUsed:[*ILD_ELG_IS_USED4*],width:[*WIDTH*],height:[*ILD_ELG_HEIGHT4*],data_type:User_Defined_1 (0x30),virtual_channel:[*ILD4_ELG_VC*]]",
+    "//$MV4_SFR[address:[*SFR_ADDRESS_1*],data:[*SFR_DATA_1*]]",
+    "//$MV4_SFR[address:[*SFR_ADDRESS_2*],data:[*SFR_DATA_2*]]",
+    "//$MV4_SFR[address:[*SFR_ADDRESS_3*],data:[*SFR_DATA_3*]]",
+    "//$MV4_SFR[address:[*SFR_ADDRESS_4*],data:[*SFR_DATA_4*]]",
+    "//$MV4_SFR[address:[*SFR_ADDRESS_5*],data:[*SFR_DATA_5*]]",
+    "//$MV4_SFR[address:[*SFR_ADDRESS_6*],data:[*SFR_DATA_6*]]",
+    "//$MV4_SFR[address:[*SFR_ADDRESS_7*],data:[*SFR_DATA_7*]]",
+    "//$MV4_Start[]",
+
+    "//$MV6[MCLK:[*MCLK*],mipi_phy_type:[*PHY_TYPE*],mipi_lane:[*PHY_LANE*],mipi_datarate:[*MIPI_DATA_RATE*]]",
+    "//$MV6_Sensor[fps:[*FPS*]]",
+    "//$MV6_CPHY_LRTE[enable:[*LRTE_EN*],longPacketSpace:2,shortPacketSpace:2]]",
+    "//$MV6_Scramble[enable:[*SCRAMBLE_EN*]]",
+    "//$MV6_MainData[width:[*WIDTH*],height:[*HEIGHT*],data_type:[*DATA_TYPE*],virtual_channel:[*MAIN_VC*]]",
+    "//$MV6_InterleavedData[isUsed:[*ILD_IS_USED_LCG*],width:[*ILD_WIDTH_LCG*],height:[*ILD_HEIGHT_LCG*],data_type:[*DATA_TYPE*],virtual_channel:[*ILD_LCG_VC*]]",
+    "//$MV6_InterleavedData[isUsed:[*ILD_IS_USED1*],width:[*ILD_WIDTH1*],height:[*ILD_HEIGHT1*],data_type:MIPI_RAW10 (0x2B),virtual_channel:[*ILD1_VC*]]",
+    "//$MV6_InterleavedData[isUsed:[*ILD_IS_USED2*],width:[*ILD_WIDTH2*],height:[*ILD_HEIGHT2*],data_type:MIPI_RAW10 (0x2B),virtual_channel:[*ILD2_VC*]]",
+    "//$MV6_InterleavedData[isUsed:[*ILD_ELG_IS_USED3*],width:[*WIDTH*],height:[*ILD_ELG_HEIGHT3*],data_type:Embedded_Data (0x12),virtual_channel:[*ILD3_ELG_VC*]]",
+    "//$MV6_InterleavedData[isUsed:[*ILD_ELG_IS_USED4*],width:[*WIDTH*],height:[*ILD_ELG_HEIGHT4*],data_type:User_Defined_1 (0x30),virtual_channel:[*ILD4_ELG_VC*]]",
+    "//$MV6_SFR[address:[*SFR_ADDRESS_1*],data:[*SFR_DATA_1*]]",
+    "//$MV6_SFR[address:[*SFR_ADDRESS_2*],data:[*SFR_DATA_2*]]",
+    "//$MV6_SFR[address:[*SFR_ADDRESS_3*],data:[*SFR_DATA_3*]]",
+    "//$MV6_SFR[address:[*SFR_ADDRESS_4*],data:[*SFR_DATA_4*]]",
+    "//$MV6_SFR[address:[*SFR_ADDRESS_5*],data:[*SFR_DATA_5*]]",
+    "//$MV6_SFR[address:[*SFR_ADDRESS_6*],data:[*SFR_DATA_6*]]",
+    "//$MV6_SFR[address:[*SFR_ADDRESS_7*],data:[*SFR_DATA_7*]]",
+    "//$MV6_Start[]"
+];
 
 const { stringify } = require('json-stringify-safe');
-const CloneFromAny = ({ selectedSetFiles,setfilePrefix ,generatedSetfileName,selectedModes}) => {
+const CloneFromAny = ({ selectedSetFiles,setfilePrefix ,generatedSetfileName,selectedModes,selectedCustomer,selectedMkclTable,selectedMkclTableKey,loading,setLoading}) => {
   const [tableNames, setTableNames] = useState({});
 const [tableData, setTableData] = useState([]);
 const [editedCells, setEditedCells] = useState({});
 const [editingCell, setEditingCell] = useState(null);
 const [columns, setColumns] = useState(["serial_number", "Tunning_param"]);
 const [displayFormat, setDisplayFormat] = useState("hex");
-const [loading, setLoading] = useState(false);
+//const [loading, setLoading] = useState(false);
 const [error, setError] = useState("");
 const [newRows, setNewRows] = useState([]);
 const [regmapContent, setRegmapContent] = useState("Loading regmap content...");
 const [focusedRow, setFocusedRow] = useState(null);
 const[deleted,setDeletedRows] = useState([]);
 const [changesSaved, setChangesSaved] = useState(false);
+const [selectedIndexes,setSelectedIndexes]=useState([]);
 
+let projectName = localStorage.getItem("projectName") || "No Project Selected";
+let projectId = localStorage.getItem("projectId");
+useEffect(() => {
+  projectName = localStorage.getItem("projectName") || "No Project Selected";
+  projectId = localStorage.getItem("projectId");
+}, [projectId]);
 useEffect(() => {
   const fetchAndSetRegmap = async () => {
-    const projectId = localStorage.getItem("projectId");
+     projectId = localStorage.getItem("projectId");
     if (projectId) {
       try {
         setLoading(true); // Start loading
@@ -283,6 +331,7 @@ const handleDeleteRow = (rowId) => {
   setTableData(prev => prev.filter(row => row.id !== rowId)); // Remove from UI
 };
 const handleSaveAllChanges = async () => {
+  setLoading(true);
     try {
       
       const file = Object.values(selectedSetFiles)[0]; // The only selected file
@@ -304,96 +353,94 @@ const handleSaveAllChanges = async () => {
         };
         });
         console.log("simplifiedData",simplifiedData);
-        
-       const addSetfileResponse = await addSetfile(
-        selectedModes,
-        file.setting_id,
-        setfilePrefix,
-        generatedSetfileName,
-        file.selectedmv
-      );   
+       
+        const indexes = file.selectedmv
+          .split(",")
+          .map((i) => parseInt(i.trim()))
+          .filter((i) => !isNaN(i));
+        setSelectedIndexes(indexes);
+        const datap = await fetchProjectById(projectId);
+        const Pnameof=datap.name;
+     
+      const insertsetfile=await cloneFromAny(selectedCustomer,indexes,selectedMkclTable,simplifiedData,setfilePrefix,selectedModes,selectedMkclTableKey,generatedSetfileName,file.selectedmv,Pnameof)
       setChangesSaved(true);
       setLoading(false);
-      alert("Setfile cloned and all changes saved successfully.");
+      alert(insertsetfile.message);
     } catch (error) {
       console.error("Error in handleSaveAllChanges:", error);
       alert("An error occurred while saving changes.");
+      setLoading(false);
     }
   };
   
 
 
-const Genratesetfile = async () => {
-//   const finalRowData = {};
-//  // console.log(tableData)
-//   tableData.forEach(col => {
-//     Object.keys(col).forEach(key => {
-//       if (key !== "id" && key !== "serial_number" && key !== "setting_id" && key !== "Tunning_param") {
-//         let keyoffile = col["Tunning_param"];
-//         const val = col[key];
+const Genratesetfile = async () => {  
+// console.log(tableData);
+const file = Object.values(selectedSetFiles)[0]; 
+ const simplifiedData = tableData.reduce((acc, row) => {
+   const { id, serial_number, Tunning_param, setting_id, ...rest } = row;
+   const value = Object.values(rest)[0]; // get the single value inside the rest object
+   const isComment = Tunning_param.trim().startsWith("//");
+   const defaultparamValue = isComment ? null : value;
+ 
+   acc[Tunning_param] = defaultparamValue;
+   return acc;
+ }, {});
+// console.log(simplifiedData)
+ //console.log(JSON.stringify(simplifiedData, null, 2));
+ 
+      const indexes = file.selectedmv
+      .split(",")
+      .map((i) => parseInt(i.trim()))
+      .filter((i) => !isNaN(i));
+      const data = await getCustomerById(selectedCustomer);
        
-//         if (!(keyoffile.startsWith("//"))) keyoffile = "WRITE #" + keyoffile;
-//         const p = keyoffile + " " + val;
-//         const nkey=col["setting_id"]+"$"+key;
-//         // If the key doesn't exist in finalRowData, create an array
-//         if (!finalRowData[nkey]) {
-//           finalRowData[nkey] = [];
-//         }
-        
-//         // Push the new value into the array
-//         finalRowData[nkey].push(p);
-//       }
-//     });
-//   });
-  
-  
-//  //Create a downloadable text file for each key
-//   for (const key in finalRowData) {
-//    // console.log(key);
-//     const [setting_id,name]=key.split("$");
-//    // console.log(setting_id);
-//  //   console.log(name);
-//      let Nname;
-//      for(const key1 in selectedSetFiles){
-//       console.log("key",key);
-//        if(selectedSetFiles[key1].name==name&&selectedSetFiles[key1].setting_id==setting_id){
-//         // console.log("key",key);
-//         // console.log(selectedSetFiles[key1].full_name);
-//         Nname=selectedSetFiles[key1].full_name;
-//         break;
-//        }
-//      }
+     const mvvariables = data.mvvariables
+     ? JSON.parse(data.mvvariables)
+     : [];    
+   const combinedMVText = indexes
+     .map(i => mergedGroups[i])
+     .join("\n");
+    console.log(combinedMVText)
+   // Extract unique [*VAR*] placeholders from the combined lines
+   const regex = /\[\*(.*?)\*\]/g;
+   const uniqueVariables = new Set(mvvariables);
+   let match;
+   console.log(uniqueVariables)
+   function replacePlaceholders(text, json) {
+       return text.replace(/\[\*(.*?)\*\]/g, (match, varName) => json[varName] || match);
+     }
+     
+     // Replace placeholders with values from the JSON object
+     const replacedText = replacePlaceholders(combinedMVText, simplifiedData);
+     let actualtext="\n";
+     for(const key in simplifiedData){
+      if(uniqueVariables.has(key))continue;
+      if(simplifiedData[key])
+      actualtext+="WRITE"+"  #"+key+"      "+simplifiedData[key]+"\n";
+      else
+      actualtext+="\n"+key+"\n";
+  }
+  console.log(replacedText)
+  console.log(actualtext); 
+  const dataToWrite = replacedText+"\n"+actualtext;
+   const blob = new Blob([dataToWrite], { type: 'text/plain' });
+   const url = URL.createObjectURL(blob);
    
-//     const dataToWrite = finalRowData[key].join('\n'); // Join array values with new line
-//     const blob = new Blob([dataToWrite], { type: 'text/plain' });
-//     const url = URL.createObjectURL(blob);
-    
-//     // Create a link element
-//     const a = document.createElement('a');
-//     a.href = url;
-//     a.download = `${Nname}.nset`; // Set the file name
-//     document.body.appendChild(a);
-//     a.click(); // Trigger the download
-//     document.body.removeChild(a); // Clean up
-//     URL.revokeObjectURL(url); // Free up memory
-//   }
-
-  // console.log(finalRowData);
-  // console.log(selectedSetFiles)
-  // console.log( JSON.stringify(selectedSetFiles))
-  // console.log(selectedModes);
- // console.log(tableData);
+   // Create a link element
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${generatedSetfileName}`; // Set the file name
+   document.body.appendChild(a);
+   a.click(); // Trigger the download
+   document.body.removeChild(a); // Clean up
+   URL.revokeObjectURL(url); // Free up memory
 
 };
 
 // Call the function (make sure to define tableData before calling)
 return (
-    <div>
-    {loading && (
-        <div className="loading-overlay">
-          <div className="spinner"></div>
-        </div>
-      )}
       
   <div style={{ padding: "20px", maxWidth: "100%", maxHeight: '83vh' }}>
        <button
@@ -635,7 +682,7 @@ return (
       </table>
     </div>
   </div>
-  </div>
+  
 );
 };
 

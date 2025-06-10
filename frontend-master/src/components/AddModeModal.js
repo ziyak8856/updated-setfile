@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import { addMode } from "../services/api";
 import "../styles/addcus.css";
 
-const AddModeModal = ({ isOpen, onClose, customerId, refreshModes }) => {
+const AddModeModal = ({ isOpen, onClose, customerId, refreshModes,loading,setLoading }) => {
     const [modeInputs, setModeInputs] = useState([""]); // Start with one input field
-    const [loading, setLoading] = useState(false);
+   // const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
     // Handle input changes

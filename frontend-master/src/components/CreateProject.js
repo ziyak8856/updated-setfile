@@ -151,6 +151,7 @@ alert(response.message)
     localStorage.removeItem("user");
     localStorage.removeItem("projectId");
     localStorage.removeItem("projectName");
+    localStorage.clear();
     navigate("/");
   };
 

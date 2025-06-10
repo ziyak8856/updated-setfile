@@ -1,12 +1,15 @@
 const pool = require("../config/db");
 const path = require("path");
 const fs = require("fs");
+const pathd="C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysqldump.exe"
+const ROOT_DIR = "C:\\Users\\DELL\\Desktop\\SETFILE__2.0";
+const UPLOAD_DIR = "C:\\Users\\DELL\\Desktop\\SETFILE__2.0\\PROJECTS";
+const DUMP_DIR = "C:\\Users\\DELL\\Desktop\\SETFILE__2.0\\DATABASE";
+const DB_NAME = "setfile_manager";
+const DB_USER = "root";
+const DB_PASS = "Ziya@8856";
 const { exec } = require("child_process");
-
-
-
-// Define upload directory
-    const mergedGroups = [/* ... your MV4 and MV6 strings ... */
+const mergedGroups = [/* ... your MV4 and MV6 strings ... */
     "//$MV4[MCLK:[*MCLK*],mipi_phy_type:[*PHY_TYPE*],mipi_lane:[*PHY_LANE*],mipi_datarate:[*MIPI_DATA_RATE*]]",
     "//$MV4_Sensor[fps:[*FPS*]]",
     "//$MV4_CPHY_LRTE[enable:[*LRTE_EN*],longPacketSpace:2,shortPacketSpace:2]]",
@@ -45,26 +48,6 @@ const { exec } = require("child_process");
     "//$MV6_SFR[address:[*SFR_ADDRESS_7*],data:[*SFR_DATA_7*]]",
     "//$MV6_Start[]"
     ];
-const ROOT_DIR = "C:\\Users\\DELL\\Desktop\\SETFILE__2.0";
-const UPLOAD_DIR = "C:\\Users\\DELL\\Desktop\\SETFILE__2.0\\PROJECTS";
-const DUMP_DIR = "C:\\Users\\DELL\\Desktop\\SETFILE__2.0\\DATABASE";
-const pathd="C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysqldump.exe"
-const DB_NAME = "setfile_manager";
-const DB_USER = "root";
-const DB_PASS = "Ziya@8856";
-async function queryWithTimeout(conn, sql, timeoutMs) {
-  return Promise.race([
-    conn.query(sql),
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Timeout acquiring global read lock")), timeoutMs)
-    ),
-  ]);
-}
-// Ensure upload directory exists
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-}
-// Create a new projectconst path = require("path");
 
 const runDump = (tableName, outputPath) => {
   return new Promise((resolve, reject) => {
@@ -80,31 +63,58 @@ const runDump = (tableName, outputPath) => {
     });
   });
 };
+
 const commitAndPushToGit = () => {
-  return new Promise((resolve, reject) => {
-    exec(`git -C "${ROOT_DIR}" add .`, (err) => {
-      if (err) {
-        console.error("❌ Git add failed:", err);
-        return reject(err);
-      }
-      exec(`git -C "${ROOT_DIR}" commit -m "Created project  with all related tables"`, (err) => {
+    return new Promise((resolve, reject) => {
+      // Step 1: git add .
+      exec(`git -C "${ROOT_DIR}" add .`, (err) => {
         if (err) {
-          console.error("❌ Git commit failed:", err);
+          console.error("❌ Git add failed:", err);
           return reject(err);
         }
-        exec(`git -C "${ROOT_DIR}" push`, (err) => {
-          if (err) {
-            console.error("❌ Git push failed:", err);
-            return reject(err);
+  
+        // Step 2: check if there are any staged changes
+        exec(`git -C "${ROOT_DIR}" diff --cached --quiet`, (err) => {
+          if (!err) {
+            console.log("ℹ️ Nothing to commit. Working tree clean.");
+            return resolve(); // Exit early — nothing to commit
           }
-          console.log("✅ Git commit and push completed successfully.");
-          resolve();
+  
+          // Step 3: commit and push if there are changes
+          exec(`git -C "${ROOT_DIR}" commit -m "Created project with all related tables"`, (err) => {
+            if (err) {
+              console.error("❌ Git commit failed:", err);
+              return reject(err);
+            }
+  
+            exec(`git -C "${ROOT_DIR}" push`, (err) => {
+              if (err) {
+                console.error("❌ Git push failed:", err);
+                return reject(err);
+              }
+  
+              console.log("✅ Git commit and push completed successfully.");
+              resolve();
+            });
+          });
         });
       });
     });
-  });
-};
+  };
+  
+  
+  
+  
 
+
+
+
+
+// Ensure upload directory exists
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
+// Create a new projectconst path = require("path");
 exports.createFullProject = async (req, res) => {
   const conn = await pool.getConnection();
   try {
@@ -116,6 +126,7 @@ exports.createFullProject = async (req, res) => {
       conn.release();
       return res.status(400).json({ message: "Invalid request data" });
     }
+
 
     const projectDir = path.join(UPLOAD_DIR, Pname);
     if (!fs.existsSync(projectDir)) fs.mkdirSync(projectDir, { recursive: true });
@@ -137,7 +148,6 @@ exports.createFullProject = async (req, res) => {
 
     const [tables] = await conn.query(`SHOW TABLES LIKE 'project'`);
     if (tables.length === 0) {
-      await conn.query("UNLOCK TABLES");
       await conn.rollback();
       conn.release();
       return res.status(400).json({ message: "project table does not exist" });
@@ -211,6 +221,15 @@ exports.createFullProject = async (req, res) => {
       `;
       await conn.query(createTableQuery);
     }
+    const createCommitTableQuery = `
+    CREATE TABLE IF NOT EXISTS \`${Pname}\` (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      commit_id VARCHAR(100) NOT NULL,
+      commit_message TEXT NOT NULL,
+      committed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `;
+  await conn.query(createCommitTableQuery);
 
     if (uniqueArray.length > 0) {
       for (const { table_name } of newSettings) {
@@ -220,7 +239,6 @@ exports.createFullProject = async (req, res) => {
       }
     }
 
-    await conn.query("UNLOCK TABLES");
     await conn.commit();
 
     // SQL Dumps
@@ -228,6 +246,7 @@ exports.createFullProject = async (req, res) => {
         await runDump("project", path.join(DUMP_DIR, `project.sql`));
         await runDump("customer", path.join(DUMP_DIR, `customer.sql`));
         await runDump("setting", path.join(DUMP_DIR, `setting.sql`));
+        await runDump(`${Pname}`, path.join(DUMP_DIR, `${Pname}.sql`));
         
         for (const { table_name } of newSettings) {
           await runDump(table_name, path.join(DUMP_DIR, `${table_name}.sql`));
@@ -237,7 +256,7 @@ exports.createFullProject = async (req, res) => {
         console.error("❌ Error during dumping tables:", error);
       }
     // Git push
-   commitAndPushToGit()
+    await commitAndPushToGit()
   .then(() => console.log("Done"))
   .catch(err => console.error("Error:", err));
 
@@ -258,7 +277,6 @@ exports.createFullProject = async (req, res) => {
     conn.release();
   }
 };
-
 exports.uploadRegmap = async (req, res) => {
   const connection = await pool.getConnection();
   try {
@@ -294,7 +312,7 @@ exports.uploadRegmap = async (req, res) => {
 
     await connection.commit();
     // Git push
-   commitAndPushToGit()
+    await commitAndPushToGit()
   .then(() => console.log("Done"))
   .catch(err => console.error("Error:", err));
     res.json({
@@ -312,7 +330,6 @@ exports.uploadRegmap = async (req, res) => {
     connection.release();
   }
 };
-
 
 
 // Get all projects

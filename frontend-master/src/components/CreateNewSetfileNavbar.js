@@ -15,8 +15,8 @@ import AddModeModal from "./AddModeModal";
 import AddMkclTableModal from "./AddMkclTableModal";
 
 import "../styles/CreateNewSetfileNavbar.css";
- const mergedGroups = [/* ... your MV4 and MV6 strings ... */
-    "//$MV4[MCLK:[*MCLK*],mipi_phy_type:[*PHY_TYPE*],mipi_lane:[*PHY_LANE*],mipi_datarate:[*MIPI_DATA_RATE*]]",
+const mergedGroups = [
+  "//$MV4[MCLK:[*MCLK*],mipi_phy_type:[*PHY_TYPE*],mipi_lane:[*PHY_LANE*],mipi_datarate:[*MIPI_DATA_RATE*]]",
     "//$MV4_Sensor[fps:[*FPS*]]",
     "//$MV4_CPHY_LRTE[enable:[*LRTE_EN*],longPacketSpace:2,shortPacketSpace:2]]",
     "//$MV4_Scramble[enable:[*SCRAMBLE_EN*]]",
@@ -53,18 +53,19 @@ import "../styles/CreateNewSetfileNavbar.css";
     "//$MV6_SFR[address:[*SFR_ADDRESS_6*],data:[*SFR_DATA_6*]]",
     "//$MV6_SFR[address:[*SFR_ADDRESS_7*],data:[*SFR_DATA_7*]]",
     "//$MV6_Start[]"
-    ];
+];
 
-const CreateNewSetfileNavbar = ({style, setfilePrefix ,setSetfilePrefix,generatedSetfileName,setgeneratedSetfileName,selectedModes,setSelectedModes,selectedMkclTable,setSelectedMkclTable}) => {
+const CreateNewSetfileNavbar = ({style, setfilePrefix ,setSetfilePrefix,generatedSetfileName,setgeneratedSetfileName,selectedModes,setSelectedModes,selectedMkclTable,setSelectedMkclTable,selectedCustomer,setSelectedCustomer,selectedMkclTableKey,setSelectedMkclTableKey,loading,setLoading}) => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
-  const projectName = localStorage.getItem("projectName") || "No Project Selected";
-  const projectId = localStorage.getItem("projectId");
+  let projectName = localStorage.getItem("projectName") || "No Project Selected";
+  let projectId = localStorage.getItem("projectId");
   //const [selectedModes, setSelectedModes] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [message, setMessage] = useState("");
   const [customers, setCustomers] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState("");
+  // const [selectedCustomer, setSelectedCustomer] = useState("");
+  //const [selectedMkclTableKey,setSelectedMkclTableKey]=useState("");
   const [selectedCustomerName, setSelectedCustomerName] = useState("");
   const [isModalOpen, setModalOpen] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
@@ -82,6 +83,7 @@ const CreateNewSetfileNavbar = ({style, setfilePrefix ,setSetfilePrefix,generate
     ["token", "user", "projectId", "projectName"].forEach((item) =>
       localStorage.removeItem(item)
     );
+    localStorage.clear();
     navigate("/");
   };
 
@@ -104,15 +106,20 @@ const CreateNewSetfileNavbar = ({style, setfilePrefix ,setSetfilePrefix,generate
       setShowAlert(true);
       return;
     }
+    setLoading(true)
     try {
-      await uploadRegmap({ file: selectedFile, projectId, name: projectName });
+      const datap = await fetchProjectById(projectId);
+  const Pnameof=datap.name;
+      await uploadRegmap({ file: selectedFile, projectId, name: Pnameof });
       setMessage("Regmap uploaded successfully!");
       setShowAlert(true);
       setSelectedFile(null);
+      setLoading(false);
     } catch (error) {
       console.error("Upload failed:", error);
       setMessage("Failed to upload regmap: " + error.message);
       setShowAlert(true);
+      setLoading(false);
     }
   };
 
@@ -131,14 +138,26 @@ const CreateNewSetfileNavbar = ({style, setfilePrefix ,setSetfilePrefix,generate
     setSelectedModes("");
     setSelectedMkclTable("");
   };
-
+  const handleMkclChange=(event)=>{
+    const selectedname=event.target.value;
+   // console.log(selectedname);
+    setSelectedMkclTable(selectedname);
+    if(selectedname){
+    const selectedTable = mkclTables.find((table) => table.table_name == selectedname);
+   // console.log("ziuuu",selectedTable)
+    setSelectedMkclTableKey(selectedTable.id);
+    }
+  }
   useEffect(() => {
     if (projectId) {
       fetchProjectById(projectId).then((data) => console.log(data));
       fetchCustomersList(projectId);
     }
   }, [projectId]);
-
+  useEffect(() => {
+     projectName = localStorage.getItem("projectName") || "No Project Selected";
+     projectId = localStorage.getItem("projectId");
+  }, [projectId]);
   useEffect(() => {
     if (selectedCustomer && customers.length > 0) {
       const customerObj = customers.find((c) => String(c.id) === String(selectedCustomer));
@@ -233,6 +252,8 @@ useEffect(() => {
               setModalOpen(false);
               fetchCustomersList(projectId);
             }}
+            loading={loading}
+            setLoading={setLoading}
           />
 
           {/* <button className="create-new-setfile-btn">Edit</button>
@@ -260,13 +281,15 @@ useEffect(() => {
           onClose={() => setModeModalOpen(false)}
           customerId={selectedCustomer}
           refreshModes={() => fetchModes(selectedCustomer).then(setModes)}
+          loading={loading}
+          setLoading={setLoading}
         />
       </div>
 
       <div className="create-new-setfile-section">
         <div className="create-new-setfile-dropdown-row">
           <label className="create-new-setfile-label">MKCL Table:</label>
-          <select className="create-new-setfile-select" value={selectedMkclTable} onChange={(e) => setSelectedMkclTable(e.target.value)}>
+          <select className="create-new-setfile-select" value={selectedMkclTable} onChange={handleMkclChange}>
             <option value="">Select MIPI Datarate</option>
             {mkclTables.map((table) => (
               <option key={table.table_name} value={table.table_name}>{table.name}</option>
@@ -282,6 +305,8 @@ useEffect(() => {
           customerId={selectedCustomer}
           uniqueArray1={uniqueVariables}
           refreshModes={() => fetchSettings(selectedCustomer).then(setMkclTables)}
+          loading={loading}
+          setLoading={setLoading}
         />
       </div>
       </div>

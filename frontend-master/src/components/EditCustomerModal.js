@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import "../styles/addcus.css";
 import { updateMVHeaderForCustomer, getCustomerById } from "../services/api"; // Adjust paths as needed
- const mergedGroups = [/* ... your MV4 and MV6 strings ... */
-    "//$MV4[MCLK:[*MCLK*],mipi_phy_type:[*PHY_TYPE*],mipi_lane:[*PHY_LANE*],mipi_datarate:[*MIPI_DATA_RATE*]]",
+
+const mergedGroups = [
+  "//$MV4[MCLK:[*MCLK*],mipi_phy_type:[*PHY_TYPE*],mipi_lane:[*PHY_LANE*],mipi_datarate:[*MIPI_DATA_RATE*]]",
     "//$MV4_Sensor[fps:[*FPS*]]",
     "//$MV4_CPHY_LRTE[enable:[*LRTE_EN*],longPacketSpace:2,shortPacketSpace:2]]",
     "//$MV4_Scramble[enable:[*SCRAMBLE_EN*]]",
@@ -39,10 +40,10 @@ import { updateMVHeaderForCustomer, getCustomerById } from "../services/api"; //
     "//$MV6_SFR[address:[*SFR_ADDRESS_6*],data:[*SFR_DATA_6*]]",
     "//$MV6_SFR[address:[*SFR_ADDRESS_7*],data:[*SFR_DATA_7*]]",
     "//$MV6_Start[]"
-    ];
+];
 
-const EditCustomerModal = ({ isOpen, onClose, customerId }) => {
-  const [loading, setLoading] = useState(true);
+const EditCustomerModal = ({ isOpen, onClose, customerId,loading,setLoading }) => {
+  //const [loading, setLoading] = useState(true);
   const [showMv4, setShowMv4] = useState(true);
   const [showMv6, setShowMv6] = useState(true);
   const [selectedIndexes, setSelectedIndexes] = useState([]);
@@ -79,12 +80,20 @@ const EditCustomerModal = ({ isOpen, onClose, customerId }) => {
 
   const handleSave = async () => {
     try {
-      await updateMVHeaderForCustomer(customerId, selectedIndexes);
+      setLoading(true)
+      const data=await getCustomerById(customerId);
+      const indexes = data.selectedmv
+      .split(",")
+      .map((i) => parseInt(i.trim()))
+      .filter((i) => !isNaN(i));
+      await updateMVHeaderForCustomer(customerId, indexes);
       alert("changed mv header of all setfile under customer!");
       onClose();
+      setLoading(false);
     } catch (err) {
       console.error("Failed to update MV headers:", err);
       alert("Failed to update MV headers.");
+        setLoading(false);
     }
   };
 
@@ -92,6 +101,7 @@ const EditCustomerModal = ({ isOpen, onClose, customerId }) => {
   if (!isOpen) return null;
 
   return (
+   
     <div className="modal-overlay">
       <div className="modal-content">
         <h2 className="h2">Select MV Headers</h2>
@@ -107,7 +117,7 @@ const EditCustomerModal = ({ isOpen, onClose, customerId }) => {
           </label>
           {showMv4 && (
             <div className="mv-container">
-              {mergedGroups.slice(0, 10).map((line, i) => (
+              {mergedGroups.slice(0, 18).map((line, i) => (
                 <label key={i} className="mv-line">
                   <input
                     type="checkbox"
@@ -132,12 +142,12 @@ const EditCustomerModal = ({ isOpen, onClose, customerId }) => {
           </label>
           {showMv6 && (
             <div className="mv-container">
-              {mergedGroups.slice(10).map((line, i) => (
-                <label key={i + 10} className="mv-line">
+              {mergedGroups.slice(18).map((line, i) => (
+                <label key={i + 18} className="mv-line">
                   <input
                     type="checkbox"
-                    checked={selectedIndexes.includes(i + 10)}
-                    onChange={() => handleCheckboxChange(i + 10)}
+                    checked={selectedIndexes.includes(i + 18)}
+                    onChange={() => handleCheckboxChange(i + 18)}
                   />
                   {line}
                 </label>
@@ -184,6 +194,7 @@ const EditCustomerModal = ({ isOpen, onClose, customerId }) => {
 
       </div>
     </div>
+    
   );
   
 

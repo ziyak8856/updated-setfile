@@ -2,31 +2,80 @@ import React, { useState, useEffect } from "react";
 import {
   fetchTableNameBySettingId,
   fetchTableData,
-  addRowAPI,
-  updateRowAPI,
   fetchRegmap,
-  deleteRowAPI
+  FileDatatableSaveall,
+  fetchProjectById,
+  getCustomerById,
+  
 } from "../services/api";
 import "../styles/FileData.css";
 // const fs = require('fs');
 // const path = require('path');
+const mergedGroups = [
+  "//$MV4[MCLK:[*MCLK*],mipi_phy_type:[*PHY_TYPE*],mipi_lane:[*PHY_LANE*],mipi_datarate:[*MIPI_DATA_RATE*]]",
+    "//$MV4_Sensor[fps:[*FPS*]]",
+    "//$MV4_CPHY_LRTE[enable:[*LRTE_EN*],longPacketSpace:2,shortPacketSpace:2]]",
+    "//$MV4_Scramble[enable:[*SCRAMBLE_EN*]]",
+    "//$MV4_MainData[width:[*WIDTH*],height:[*HEIGHT*],data_type:[*DATA_TYPE*],virtual_channel:[*MAIN_VC*]]",
+    "//$MV4_InterleavedData[isUsed:[*ILD_IS_USED_LCG*],width:[*ILD_WIDTH_LCG*],height:[*ILD_HEIGHT_LCG*],data_type:[*DATA_TYPE*],virtual_channel:[*ILD_LCG_VC*]]",
+    "//$MV4_InterleavedData[isUsed:[*ILD_IS_USED1*],width:[*ILD_WIDTH1*],height:[*ILD_HEIGHT1*],data_type:MIPI_RAW10 (0x2B),virtual_channel:[*ILD1_VC*]]",
+    "//$MV4_InterleavedData[isUsed:[*ILD_IS_USED2*],width:[*ILD_WIDTH2*],height:[*ILD_HEIGHT2*],data_type:MIPI_RAW10 (0x2B),virtual_channel:[*ILD2_VC*]]",
+    "//$MV4_InterleavedData[isUsed:[*ILD_ELG_IS_USED3*],width:[*WIDTH*],height:[*ILD_ELG_HEIGHT3*],data_type:Embedded_Data (0x12),virtual_channel:[*ILD3_ELG_VC*]]",
+    "//$MV4_InterleavedData[isUsed:[*ILD_ELG_IS_USED4*],width:[*WIDTH*],height:[*ILD_ELG_HEIGHT4*],data_type:User_Defined_1 (0x30),virtual_channel:[*ILD4_ELG_VC*]]",
+    "//$MV4_SFR[address:[*SFR_ADDRESS_1*],data:[*SFR_DATA_1*]]",
+    "//$MV4_SFR[address:[*SFR_ADDRESS_2*],data:[*SFR_DATA_2*]]",
+    "//$MV4_SFR[address:[*SFR_ADDRESS_3*],data:[*SFR_DATA_3*]]",
+    "//$MV4_SFR[address:[*SFR_ADDRESS_4*],data:[*SFR_DATA_4*]]",
+    "//$MV4_SFR[address:[*SFR_ADDRESS_5*],data:[*SFR_DATA_5*]]",
+    "//$MV4_SFR[address:[*SFR_ADDRESS_6*],data:[*SFR_DATA_6*]]",
+    "//$MV4_SFR[address:[*SFR_ADDRESS_7*],data:[*SFR_DATA_7*]]",
+    "//$MV4_Start[]",
+
+    "//$MV6[MCLK:[*MCLK*],mipi_phy_type:[*PHY_TYPE*],mipi_lane:[*PHY_LANE*],mipi_datarate:[*MIPI_DATA_RATE*]]",
+    "//$MV6_Sensor[fps:[*FPS*]]",
+    "//$MV6_CPHY_LRTE[enable:[*LRTE_EN*],longPacketSpace:2,shortPacketSpace:2]]",
+    "//$MV6_Scramble[enable:[*SCRAMBLE_EN*]]",
+    "//$MV6_MainData[width:[*WIDTH*],height:[*HEIGHT*],data_type:[*DATA_TYPE*],virtual_channel:[*MAIN_VC*]]",
+    "//$MV6_InterleavedData[isUsed:[*ILD_IS_USED_LCG*],width:[*ILD_WIDTH_LCG*],height:[*ILD_HEIGHT_LCG*],data_type:[*DATA_TYPE*],virtual_channel:[*ILD_LCG_VC*]]",
+    "//$MV6_InterleavedData[isUsed:[*ILD_IS_USED1*],width:[*ILD_WIDTH1*],height:[*ILD_HEIGHT1*],data_type:MIPI_RAW10 (0x2B),virtual_channel:[*ILD1_VC*]]",
+    "//$MV6_InterleavedData[isUsed:[*ILD_IS_USED2*],width:[*ILD_WIDTH2*],height:[*ILD_HEIGHT2*],data_type:MIPI_RAW10 (0x2B),virtual_channel:[*ILD2_VC*]]",
+    "//$MV6_InterleavedData[isUsed:[*ILD_ELG_IS_USED3*],width:[*WIDTH*],height:[*ILD_ELG_HEIGHT3*],data_type:Embedded_Data (0x12),virtual_channel:[*ILD3_ELG_VC*]]",
+    "//$MV6_InterleavedData[isUsed:[*ILD_ELG_IS_USED4*],width:[*WIDTH*],height:[*ILD_ELG_HEIGHT4*],data_type:User_Defined_1 (0x30),virtual_channel:[*ILD4_ELG_VC*]]",
+    "//$MV6_SFR[address:[*SFR_ADDRESS_1*],data:[*SFR_DATA_1*]]",
+    "//$MV6_SFR[address:[*SFR_ADDRESS_2*],data:[*SFR_DATA_2*]]",
+    "//$MV6_SFR[address:[*SFR_ADDRESS_3*],data:[*SFR_DATA_3*]]",
+    "//$MV6_SFR[address:[*SFR_ADDRESS_4*],data:[*SFR_DATA_4*]]",
+    "//$MV6_SFR[address:[*SFR_ADDRESS_5*],data:[*SFR_DATA_5*]]",
+    "//$MV6_SFR[address:[*SFR_ADDRESS_6*],data:[*SFR_DATA_6*]]",
+    "//$MV6_SFR[address:[*SFR_ADDRESS_7*],data:[*SFR_DATA_7*]]",
+    "//$MV6_Start[]"
+];
+
+let projectName = "";
 const { stringify } = require('json-stringify-safe');
-const FileDataTable = ({ selectedSetFiles }) => {
+const FileDataTable = ({ selectedSetFiles,selectedCustomer, selectedMkclTable,loading,setLoading }) => {
   const [tableNames, setTableNames] = useState({});
 const [tableData, setTableData] = useState([]);
 const [editedCells, setEditedCells] = useState({});
 const [editingCell, setEditingCell] = useState(null);
 const [columns, setColumns] = useState(["serial_number", "Tunning_param"]);
 const [displayFormat, setDisplayFormat] = useState("hex");
-const [loading, setLoading] = useState(false);
+//const [loading, setLoading] = useState(false);
 const [error, setError] = useState("");
 const [newRows, setNewRows] = useState([]);
 const [regmapContent, setRegmapContent] = useState("Loading regmap content...");
 const [focusedRow, setFocusedRow] = useState(null);
 const[deleted,setDeletedRows] = useState([]);
+let projectName = localStorage.getItem("projectName") || "No Project Selected";
+let projectId = localStorage.getItem("projectId");
+useEffect(() => {
+  projectName = localStorage.getItem("projectName") || "No Project Selected";
+  projectId = localStorage.getItem("projectId");
+}, [projectId]);
 useEffect(() => {
   const fetchAndSetRegmap = async () => {
-    const projectId = localStorage.getItem("projectId");
+     projectId = localStorage.getItem("projectId");
+      projectName=localStorage.getItem("projectName");
     if (projectId) {
       try {
         setLoading(true); // Start loading
@@ -37,15 +86,18 @@ useEffect(() => {
         } else {
           setRegmapContent("Error: Failed to fetch or parse regmap data.");
         }
+        setLoading(false)
       } catch (err) {
         console.error("Error fetching regmap:", err);
         setError("Failed to fetch regmap.");
+        setLoading(false)
       } finally {
-      
+        setLoading(false)
       }
     } else {
       console.warn("No projectId found in localStorage");
       setRegmapContent("No project ID found.");
+      setLoading(false)
       
     }
   };
@@ -72,9 +124,10 @@ useEffect(() => {
       if (JSON.stringify(newTableNames) !== JSON.stringify(tableNames)) {
         setTableNames(newTableNames);
       }
-
+      setLoading(false);
     } catch {
       setError("Failed to fetch table names.");
+      setLoading(false);
     } finally {
       setLoading(false);
     }
@@ -133,10 +186,11 @@ useEffect(() => {
 
       setColumns((prev) => (JSON.stringify(prev) !== JSON.stringify(newColumns) ? newColumns : prev));
       setTableData((prev) => (JSON.stringify(prev) !== JSON.stringify(mergedArray) ? mergedArray : prev));
-
+      setLoading(false);
     } catch (err) {
       console.error("Error fetching table data:", err);
       setError("Failed to fetch table data.");
+      setLoading(false);
     } finally {
       setLoading(false);
     }
@@ -261,115 +315,6 @@ const handleAddRow = (refRow) => {
   ]);
 };
 
-const handleSaveEditedCells = async () => {
- const updates = [];
-
-for (const rowId in editedCells) {
-  const changes = editedCells[rowId];
-  const settingId = tableData.find(row => row.id == rowId)?.setting_id;
-  const tableName = tableNames[settingId];
-  if (!tableName) continue;
-
-  for (const colName in changes) {
-    const regmapEntry = regmapContent[changes[colName]]?.Value;
-    const value = changes[colName] ;
-    updates.push({
-      tableName,
-      rowId,
-      colName,
-      value,
-      regmapEntry,
-    });
-  }
-}
-// Send all updates in one API call
-await updateRowAPI(updates);
-  setEditedCells({});
-  alert("Edited cells saved successfully!");
-};
-const handleSaveNewRows = async () => {
-  const unsavedValidRows = [];
-
-  for (const newRow of newRows) {
-    const rowInState = tableData.find(r => r.id === newRow.tempId);
-    const tunningValue = rowInState?.Tunning_param?.toString().trim();
-
-    if (!tunningValue) {
-      alert(`Tunning_param is required before saving row with serial no: ${rowInState.serial_number}`);
-      return;
-    }
-
-    unsavedValidRows.push({ newRow, rowInState });
-  }
-
-  const insertions = [];
-
-  for (const { newRow, rowInState } of unsavedValidRows) {
-    const refRow = tableData.find(r => r.id === newRow.refId);
-    const settingId = refRow?.setting_id;
-    const tableName = tableNames[settingId];
-    if (!tableName) continue;
-
-    const isComment = typeof rowInState.Tunning_param === "string" &&
-                      rowInState.Tunning_param.trim().startsWith("//");
-
-    const tuningKey = rowInState.Tunning_param?.trim();
-    const regmapValue = regmapContent?.[tuningKey]?.Value ?? null;
-
-    const finalRowData = {};
-    columns.forEach(col => {
-      if (!["id", "serial_number", "setting_id"].includes(col)) {
-        if (col === "Tunning_param") {
-          finalRowData[col] = rowInState[col];
-        } else {
-          finalRowData[col] = isComment ? null : (rowInState[col] ?? regmapValue);
-        }
-      }
-    });
-
-    const adjustedRefId = !isNaN(parseInt(newRow.refId))
-      ? parseInt(newRow.refId)
-      : newRow.refId;
-
-    insertions.push({
-      tableName,
-      refId: adjustedRefId,
-      position: newRow.position,
-      data: finalRowData,
-      setting_id: rowInState.setting_id,
-      tempId: newRow.tempId
-    });
-  }
-
-  if (insertions.length === 0) return;
-
-  try {
-    const response = await addRowAPI(insertions); // POST array to backend
-
-    if (response?.success && response?.newRows) {
-      setTableData(prev => {
-        let updated = [...prev];
-        for (const { newRow, tempId, setting_id } of response.newRows) {
-          const index = updated.findIndex(r => r.id === tempId);
-          if (index !== -1) {
-            updated[index] = { ...newRow, setting_id };
-          }
-        }
-        return updated;
-      });
-
-      setNewRows([]);
-      alert("New rows saved successfully!");
-    } else {
-      alert("Some rows failed to save. Please try again.");
-    }
-  } catch (error) {
-    console.error("Error during batch insertion:", error);
-    alert("An error occurred while saving new rows.");
-  }
-};
-
-
 // \U0001f9e0 Unified Save Button
 const handleDeleteRow = (rowId) => {
   const rowToDelete = tableData.find(row => row.id === rowId);
@@ -392,116 +337,208 @@ const handleDeleteRow = (rowId) => {
   setTableData(prev => prev.filter(row => row.id !== rowId)); // Remove from UI
 };
 
-
-
-const handleSaveDeletedRows = async () => {
-  if (deleted.length === 0) return;
-
+// \U0001f9e0 Unified Save Button
+const handleSaveAllChanges = async () => {
+  setLoading(true)
+  const updates = [];
   const deletions = [];
-
+  const insertions = [];
+  if (Object.keys(editedCells).length > 0) {
+    for (const rowId in editedCells) {
+      const changes = editedCells[rowId];
+      const settingId = tableData.find(row => row.id == rowId)?.setting_id;
+      const tableName = tableNames[settingId];
+      if (!tableName) continue;
+    
+      for (const colName in changes) {
+        const regmapEntry = regmapContent[changes[colName]]?.Value;
+        const value = changes[colName] ;
+        updates.push({
+          tableName,
+          rowId,
+          colName,
+          value,
+          regmapEntry,
+        });
+      }
+    }
+  }
+  if (deleted.length > 0) {
   for (const row of deleted) {
     const tableName = tableNames[row.setting_id];
     if (!tableName) continue;
-
     deletions.push({
       tableName,
       rowId: row.id
     });
   }
-
-  if (deletions.length === 0) return;
-
-  try {
-    const response = await deleteRowAPI(deletions);
-    if (response?.success) {
-      setDeletedRows([]);
-      alert("All deletions saved to backend!");
-    } else {
-      console.error("Batch delete failed:", response);
-      alert("Some deletions failed. Please try again.");
-    }
-  } catch (error) {
-    console.error("Error during batch deletion:", error);
-    alert("An error occurred while deleting rows.");
-  }
-};
-
-
-// \U0001f9e0 Unified Save Button
-const handleSaveAllChanges = async () => {
-  if (Object.keys(editedCells).length > 0) {
-    await handleSaveEditedCells();
-  }
-  if (deleted.length > 0) {
-    await handleSaveDeletedRows();
   }
   if (newRows.length > 0) {
-    await handleSaveNewRows();
+    const unsavedValidRows = [];
+  for (const newRow of newRows) {
+    const rowInState = tableData.find(r => r.id === newRow.tempId);
+    const tunningValue = rowInState?.Tunning_param?.toString().trim();
+
+    if (!tunningValue) {
+      alert(`Tunning_param is required before saving row with serial no: ${rowInState.serial_number}`);
+      return;
+    }
+
+    unsavedValidRows.push({ newRow, rowInState });
   }
+  for (const { newRow, rowInState } of unsavedValidRows) {
+    const refRow = tableData.find(r => r.id === newRow.refId);
+    const settingId = refRow?.setting_id;
+    const tableName = tableNames[settingId];
+    if (!tableName) continue;
+
+    const isComment = typeof rowInState.Tunning_param === "string" &&
+                      rowInState.Tunning_param.trim().startsWith("//");
+
+    const tuningKey = rowInState.Tunning_param?.trim();
+    const regmapValue = regmapContent?.[tuningKey]?.Value ?? null;
+    console.log("ghsdfhyvshud",regmapValue)
+    const finalRowData = {};
+    columns.forEach(col => {
+      if (!["id", "serial_number", "setting_id"].includes(col)) {
+        if (col === "Tunning_param") {
+          finalRowData[col] = rowInState[col];
+        } else {
+          finalRowData[col] = isComment ? null : (rowInState[col] ?? regmapValue);
+        }
+      }
+    });
+
+    const adjustedRefId = !isNaN(parseInt(newRow.refId))
+      ? parseInt(newRow.refId)
+      : newRow.refId;
+
+    insertions.push({
+      tableName,
+      refId: adjustedRefId,
+      position: newRow.position,
+      data: finalRowData,
+      setting_id: rowInState.setting_id,
+      tempId: newRow.tempId,
+      defaultValue:regmapValue,
+    });
+  }
+  }
+  const data = await getCustomerById(selectedCustomer);
+  const datap = await fetchProjectById(projectId);
+  const Pnameof=datap.name;
+  const customerName=data.name;
+  const mvvariables = data.mvvariables
+  ? JSON.parse(data.mvvariables)
+  : [];
+  try {
+    const response = await FileDatatableSaveall(updates,deletions,insertions,Pnameof,customerName,selectedMkclTable,mvvariables) // POST array to backend
+
+    if (response?.success && response?.newRows) {
+      setTableData(prev => {
+        let updated = [...prev];
+        for (const { newRow, tempId, setting_id } of response.newRows) {
+          const index = updated.findIndex(r => r.id === tempId);
+          if (index !== -1) {
+            updated[index] = { ...newRow, setting_id };
+          }
+        }
+        return updated;
+      });
+      setDeletedRows([]);
+      setNewRows([]);
+      setEditedCells({});
+      setLoading(false)
+      alert(" saved successfully!");
+    } else {
+      alert("Some rows failed to save. Please try again.");
+    }
+  } catch (error) {
+    console.error("Error during batch insertion:", error);
+    setLoading(false)
+    alert("An error occurred while saving new rows.");
+  }
+
   // console.log(deletedRowIds, "deletedRowIds");
   
 };
   
-
-
-
 const Genratesetfile = async () => {
   const finalRowData = {};
- // console.log(tableData)
+ console.log(tableData);
   tableData.forEach(col => {
     Object.keys(col).forEach(key => {
       if (key !== "id" && key !== "serial_number" && key !== "setting_id" && key !== "Tunning_param") {
         let keyoffile = col["Tunning_param"];
-        const val = col[key];
-       
-        if (!(keyoffile.startsWith("//"))) keyoffile = "WRITE #" + keyoffile;
-        const p = keyoffile + " " + val;
-        const nkey=col["setting_id"]+"$"+key;
-        // If the key doesn't exist in finalRowData, create an array
-        if (!finalRowData[nkey]) {
-          finalRowData[nkey] = [];
-        }
+        let val = col[key];
         
-        // Push the new value into the array
-        finalRowData[nkey].push(p);
+        if ((keyoffile.startsWith("//")))val=null;
+       
+        if (!finalRowData[key]) {
+          finalRowData[key] = {};
+        }
+
+        finalRowData[key][keyoffile]=val;
       }
     });
   });
   
-  
+ // console.log(finalRowData);
+  const namemap={};
+  const mvmap={};
+  for(const key in selectedSetFiles){
+    mvmap[selectedSetFiles[key].name]=selectedSetFiles[key].selectedmv;
+    namemap[selectedSetFiles[key].name]=selectedSetFiles[key].full_name;
+  }
+  const data = await getCustomerById(selectedCustomer);
+    
+  const mvvariables = data.mvvariables
+  ? JSON.parse(data.mvvariables)
+  : [];    
+  //console.log(namemap)
  //Create a downloadable text file for each key
   for (const key in finalRowData) {
-   // console.log(key);
-    const [setting_id,name]=key.split("$");
-   // console.log(setting_id);
- //   console.log(name);
-     let Nname;
-     for(const key1 in selectedSetFiles){
-      console.log("key",key);
-       if(selectedSetFiles[key1].name==name&&selectedSetFiles[key1].setting_id==setting_id){
-        // console.log("key",key);
-        // console.log(selectedSetFiles[key1].full_name);
-        Nname=selectedSetFiles[key1].full_name;
-        break;
-       }
-     }
-   
-    const dataToWrite = finalRowData[key].join('\n'); // Join array values with new line
-    const blob = new Blob([dataToWrite], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    
-    // Create a link element
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${Nname}.nset`; // Set the file name
-    document.body.appendChild(a);
-    a.click(); // Trigger the download
-    document.body.removeChild(a); // Clean up
-    URL.revokeObjectURL(url); // Free up memory
+    const indexes = mvmap[key]
+    .split(",")
+    .map((i) => parseInt(i.trim()))
+    .filter((i) => !isNaN(i));
+    const combinedMVText = indexes
+    .map(i => mergedGroups[i])
+    .join("\n");
+    const regex = /\[\*(.*?)\*\]/g;
+    const uniqueVariables = new Set(mvvariables);
+    let match;
+    //console.log(uniqueVariables)
+    function replacePlaceholders(text, json) {
+        return text.replace(/\[\*(.*?)\*\]/g, (match, varName) => json[varName] || match);
+      }
+      const perfile=finalRowData[key];
+      const replacedText = replacePlaceholders(combinedMVText, perfile);
+      //console.log(perfile)
+    let actualtext="\n";
+    for(const key in perfile){
+      if(uniqueVariables.has(key))continue;
+      if(perfile[key])
+      actualtext+="WRITE"+"  #"+key+"      "+perfile[key]+"\n";
+      else
+      actualtext+="\n"+key+"\n";
+  }
+ const dataToWrite = replacedText+"\n"+actualtext;
+ const blob = new Blob([dataToWrite], { type: 'text/plain' });
+ const url = URL.createObjectURL(blob);
+ 
+ // Create a link element
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${namemap[key]}`; // Set the file name
+ document.body.appendChild(a);
+ a.click(); // Trigger the download
+ document.body.removeChild(a); // Clean up
+ URL.revokeObjectURL(url); // Free up memory
   }
 
   // console.log(finalRowData);
-  // console.log(selectedSetFiles)
+   //console.log(selectedSetFiles)
 };
 
 // Call the function (make sure to define tableData before calling)
@@ -509,7 +546,7 @@ const Genratesetfile = async () => {
 
   
 return (
-  <div style={{ padding: "20px", maxWidth: "100%", maxHeight: '83vh' }}>
+  <div style={{ maxWidth: "100%", maxHeight: '83vh', paddingBottom: "30px"}}>
        <button
       onClick={Genratesetfile}
       style={{
@@ -520,9 +557,10 @@ return (
         border: "none",
         borderRadius: "4px",
         cursor: "pointer",
+        marginLeft: "10px"
       }}
     >
-      genrate setfiles
+      Generate Setfiles
     </button>
      <button
       onClick={() => setDisplayFormat(displayFormat === "hex" ? "dec" : "hex")}
@@ -534,13 +572,11 @@ return (
         border: "none",
         borderRadius: "4px",
         cursor: "pointer",
+        marginLeft: "10px"
       }}
     >
       Switch to {displayFormat === "hex" ? "Decimal" : "Hexadecimal"}
     </button>
- 
-
-
       {(Object.keys(editedCells).length > 0 || newRows.length > 0|| deleted.length > 0) && (
         <button onClick={handleSaveAllChanges} style={{
           marginTop: "20px",
@@ -557,19 +593,19 @@ return (
         </button>
       )}
 
-      <div style={{ position: "relative", marginLeft: "30px", maxHeight: '82vh', overflowY: "auto" }}>
-      <table style={{
+      <div style={{ position: "relative", maxHeight: '82vh', overflowY: "auto" }}>
+      <table className="Table" style={{
         borderCollapse: "collapse",
         width: "100%",
         backgroundColor: "#fff",
         boxShadow: "0 0 10px rgba(0,0,0,0.1)",
         position: "relative",
-        marginLeft: "30px",
         border: '1px solid #ddd',
         overflowX: "auto"
       }}>
         <thead style={{ position: "sticky", top: 0, zIndex: 1 ,border: '1px solid #ddd'}}>
           <tr style={{ backgroundColor: "#f1f1f1",border: '1px solid #ddd' }}>
+          <th style={{ width: "50px" }}></th> {/* for + button */}
             <th style={{ padding: "12px", textAlign: "left",border: '1px solid #ddd' }}>Serial</th>
             {columns
               .filter(col => col !== "serial_number" && col !== "id")
@@ -579,7 +615,7 @@ return (
           </tr>
         </thead>
         <tbody>
-          {tableData.length > 0 && (
+          {/* {tableData.length > 0 && (
             <tr style={{ height: "0px", position: "relative" }}>
               <td colSpan={columns.length} style={{ padding: 0, position: "relative" }}>
               <div
@@ -607,11 +643,31 @@ return (
                 </div>
               </td>
             </tr>
-          )}
+          )} */}
 
           {tableData.map(row => (
             <React.Fragment key={row.id}>
-              <tr style={{ borderBottom: "1px solid #ddd",border: '1px solid #ddd' }}>
+              <tr>
+              <td style={{ textAlign: "center", position: "relative", minWidth: "30px"}}>
+                  <button
+                    onClick={() => handleAddRow(row)}
+                    style={{
+                      position: "absolute",
+                      bottom: "-12px",
+                      right: "3px",
+                      fontSize: "14px",
+                      padding: "4px 8px",
+                      borderRadius: "50%",
+                      border: "1px solid #ccc",
+                      backgroundColor: "#e9ecef",
+                      cursor: "pointer",
+                      lineHeight: "1",
+                      zIndex: 1
+                    }}
+                  >
+                    +
+                  </button>
+                </td>
                 <td style={{ padding: "10px" ,border: '1px solid #ddd'}}>{row.serial_number || "-"}</td>
                 {columns
                   .filter(col => col !== "serial_number" && col !== "id")
@@ -730,7 +786,7 @@ return (
                     transform: "translateY(-50%)"
                   }}
                 >
-                  <button
+                  {/* <button
                     onClick={() => handleAddRow(row)}
                     style={{
                       fontSize: "14px",
@@ -743,7 +799,7 @@ return (
                     }}
                   >
                     +
-                  </button>
+                  </button> */}
                   </div>
                 </td>
               </tr>

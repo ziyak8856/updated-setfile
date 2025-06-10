@@ -11,12 +11,18 @@ const FileList = ({selectedSetFiles,setSelectedSetFiles,selectedMkclTableFromClo
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const [customers, setCustomers] = useState([]);
   const [mkclTables, setMkclTables] = useState([]);
+  const [SelectedMkclTableKey,setSelectedMkclTableKey]=useState("")
  //const [selectedMkclTables, setSelectedMkclTables] = useState([]);
  const projectId = localStorage.getItem("projectId");
  useEffect(() => {
     const fetchData = async () => {
+      if (selectedModes==null||SelectedMkclTableKey=="") {
+        setFileData([]);
+        setSelectedSetFiles({});
+        return;
+      }
       const newFileData = [];
-      const data = await fetchSetFilesbyMode(selectedModes);
+      const data = await fetchSetFilesbyMode(selectedModes,SelectedMkclTableKey);
       if (data.files) {
         newFileData.push({ selectedModes, files: data.files });
       }
@@ -38,7 +44,7 @@ const FileList = ({selectedSetFiles,setSelectedSetFiles,selectedMkclTableFromClo
     };
 
     fetchData();
-  }, [selectedModes, setSelectedSetFiles]);
+  }, [selectedModes, setSelectedSetFiles,SelectedMkclTableKey]);
 
   const handleCheckboxChange = (file) => {
     setSelectedSetFiles({}); // Clear previously selected files
@@ -60,6 +66,16 @@ const FileList = ({selectedSetFiles,setSelectedSetFiles,selectedMkclTableFromClo
     setSelectedModes("");
     setSelectedMkclTableFromClone("");
   };
+  const handleMkclChange=(event)=>{
+    const selectedname=event.target.value;
+   // console.log(selectedname);
+    setSelectedMkclTableFromClone(selectedname);
+    if(selectedname){
+    const selectedTable = mkclTables.find((table) => table.table_name == selectedname);
+   // console.log("ziuuu",selectedTable)
+    setSelectedMkclTableKey(selectedTable.id);
+    }
+  }
   
   useEffect(() => {
     if (projectId) {
@@ -94,7 +110,7 @@ const FileList = ({selectedSetFiles,setSelectedSetFiles,selectedMkclTableFromClo
             ))}
           </select>
           
-          <select className="create-new-setfile-select" value={selectedMkclTableFromClone} onChange={(e) => setSelectedMkclTableFromClone(e.target.value)}>
+          <select className="create-new-setfile-select" value={selectedMkclTableFromClone} onChange={handleMkclChange}>
             <option value="">Select MCLK Table</option>
             {mkclTables.map((table) => (
               <option key={table.table_name} value={table.table_name}>{table.name}</option>

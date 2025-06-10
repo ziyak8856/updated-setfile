@@ -1,15 +1,23 @@
 import React, { useEffect, useState } from "react";
-import { fetchSetFilesbyMode,markFileAsDeleted } from "../services/api";
+import { fetchSetFilesbyMode,markFileAsDeleted,getCustomerById,fetchProjectById } from "../services/api";
 import "../styles/FileList.css";
 import MVHeaderSelector from "./MVHeaderSelector";
-const FileList = ({ selectedModes, selectedSetFiles, setSelectedSetFiles,selectedCustomer }) => {
+const FileList = ({ selectedModes, selectedSetFiles, setSelectedSetFiles,selectedCustomer,selectedMkclTable,loading,setLoading }) => {
   const [fileData, setFileData] = useState([]); // Store all setfiles across modes
   const [showMVModal, setShowMVModal] = useState(false);
   const [currentEditingFile, setCurrentEditingFile] = useState(null);
-
+  //const [loading, setLoading] = useState(false);
+  const [showmvbtn,setshowmvbtn]=useState(false);
+  const[showdelbtn,setshowdelbtn]=useState(false);
+  let projectName = localStorage.getItem("projectName") || "No Project Selected";
+  let projectId = localStorage.getItem("projectId");
+  useEffect(() => {
+    projectName = localStorage.getItem("projectName") || "No Project Selected";
+    projectId = localStorage.getItem("projectId");
+ }, [projectId]);
   useEffect(() => {
     const fetchData = async () => {
-      if (!Array.isArray(selectedModes) || selectedModes.length === 0||selectedModes==null) {
+      if (!Array.isArray(selectedModes) || selectedModes.length === 0||selectedModes==null||selectedMkclTable=="") {
         setFileData([]);
         setSelectedSetFiles({});
         return;
@@ -17,7 +25,7 @@ const FileList = ({ selectedModes, selectedSetFiles, setSelectedSetFiles,selecte
       console.log("customerformfile",selectedCustomer);
       const newFileData = [];
       for (const mode of selectedModes) {
-        const data = await fetchSetFilesbyMode(mode.id);
+        const data = await fetchSetFilesbyMode(mode.id,selectedMkclTable);
         if (data.files) {
           newFileData.push({ mode, files: data.files });
         }
@@ -40,7 +48,7 @@ const FileList = ({ selectedModes, selectedSetFiles, setSelectedSetFiles,selecte
     };
 
     fetchData();
-  }, [selectedModes, setSelectedSetFiles]);
+  }, [selectedModes, setSelectedSetFiles,selectedMkclTable]);
 
   const handleCheckboxChange = (file) => {
     setSelectedSetFiles((prev) => {
@@ -55,9 +63,10 @@ const FileList = ({ selectedModes, selectedSetFiles, setSelectedSetFiles,selecte
   };
 
   const handleDeleteFile = async (fileToDelete) => {
+    
     const confirmDelete = window.confirm(`Are you sure you want to delete "${fileToDelete.full_name}"?`);
     if (!confirmDelete) return;
-
+    setLoading(true)
     setSelectedSetFiles((prev) => {
       const updated = { ...prev };
       delete updated[fileToDelete.id];
@@ -72,10 +81,16 @@ const FileList = ({ selectedModes, selectedSetFiles, setSelectedSetFiles,selecte
     );
 
     try {
-      await markFileAsDeleted(fileToDelete);
+      const data = await getCustomerById(selectedCustomer);
+      const customerName=data.name;
+      const datap = await fetchProjectById(projectId);
+       const Pnameof=datap.name;
+      await markFileAsDeleted(fileToDelete,Pnameof,customerName);
+      setLoading(false)
       alert(`"${fileToDelete.full_name}" has been successfully deleted.`);
     } catch (error) {
       console.error("Failed to delete file:", error);
+      setLoading(false)
       alert(`Failed to delete "${fileToDelete.full_name}".`);
     }
   };
@@ -113,7 +128,14 @@ const FileList = ({ selectedModes, selectedSetFiles, setSelectedSetFiles,selecte
   };
   
   return (
+    
     <div>
+      <button className="delete-button" style={{marginTop: "10px"}}  onClick={()=>setshowmvbtn(!showmvbtn)}>
+        show MV
+      </button>
+      <button  className="delete-button" onClick={()=>setshowdelbtn(!showdelbtn)}>
+        show delete
+      </button>
       <ul className="mode-list1">
         {fileData.map(({ mode, files }) => (
           <li key={mode.id} className="mode-item1">
@@ -128,15 +150,16 @@ const FileList = ({ selectedModes, selectedSetFiles, setSelectedSetFiles,selecte
                     onChange={() => handleCheckboxChange(file)}
                   />
                   <label htmlFor={file.id}>{file.full_name}</label>
-                  <button className="delete-button" onClick={() => openMVEditor(file)}>
+                  { showmvbtn&&<button className="delete-button" onClick={() => openMVEditor(file)}>
                     MV
-                  </button>
-                  <button
+                  </button>}
+                 
+                 {showdelbtn&& <button
                     className="delete-button"
                     onClick={() => handleDeleteFile(file)}
                   >
                     Delete
-                  </button>
+                  </button>}
                 </li>
               ))}
             </ul>
@@ -155,12 +178,15 @@ const FileList = ({ selectedModes, selectedSetFiles, setSelectedSetFiles,selecte
                 setShowMVModal(false);
                 setCurrentEditingFile(null);
               }}
+              loading={loading}
+              setLoading={setLoading}
             />
           </div>
         </div>
       )}
       {/* {console.log("Selected Set Files:", selectedSetFiles)}   */}
     </div>
+    
   );
 };
 

@@ -2,12 +2,12 @@ import React, { useEffect, useState } from "react";
 import "../styles/addcus.css";
 import { updateMVHeaderForFile } from "../services/api"; // Adjust the import path as necessary
 
-const MVHeaderSelector = ({ selectedmv = "", fileId,selectedCustomer, onSave, onClose }) => {
+const MVHeaderSelector = ({ selectedmv = "", fileId,selectedCustomer, onSave, onClose,loading,setLoading }) => {
   const [showMv4, setShowMv4] = useState(true);
   const [showMv6, setShowMv6] = useState(true);
   const [selectedIndexes, setSelectedIndexes] = useState([]);
 
-   const mergedGroups = [/* ... your MV4 and MV6 strings ... */
+  const mergedGroups = [
     "//$MV4[MCLK:[*MCLK*],mipi_phy_type:[*PHY_TYPE*],mipi_lane:[*PHY_LANE*],mipi_datarate:[*MIPI_DATA_RATE*]]",
     "//$MV4_Sensor[fps:[*FPS*]]",
     "//$MV4_CPHY_LRTE[enable:[*LRTE_EN*],longPacketSpace:2,shortPacketSpace:2]]",
@@ -45,7 +45,7 @@ const MVHeaderSelector = ({ selectedmv = "", fileId,selectedCustomer, onSave, on
     "//$MV6_SFR[address:[*SFR_ADDRESS_6*],data:[*SFR_DATA_6*]]",
     "//$MV6_SFR[address:[*SFR_ADDRESS_7*],data:[*SFR_DATA_7*]]",
     "//$MV6_Start[]"
-    ];
+  ];
 
   useEffect(() => {
     if (selectedmv) {
@@ -66,6 +66,7 @@ const MVHeaderSelector = ({ selectedmv = "", fileId,selectedCustomer, onSave, on
   };
 
   const handleSave = async () => {
+    setLoading(true)
     const selectedString = selectedIndexes.join(",");
   
     try {
@@ -74,14 +75,18 @@ const MVHeaderSelector = ({ selectedmv = "", fileId,selectedCustomer, onSave, on
       await updateMVHeaderForFile(fileId, selectedString,selectedCustomer,selectedIndexes);
       alert("done!");
       onSave(selectedString);
+     
       onClose();
+      setLoading(false)
     } catch (error) {
       console.error("Error updating selectedmv:", error);
+      setLoading(false)
       alert(error);
     }
   };
 
   return (
+   
     <div className="mv-modal">
       <h2>Select MV Headers</h2>
 
@@ -95,7 +100,7 @@ const MVHeaderSelector = ({ selectedmv = "", fileId,selectedCustomer, onSave, on
         </label>
         {showMv4 && (
           <div className="mv-container">
-            {mergedGroups.slice(0, 10).map((line, i) => (
+            {mergedGroups.slice(0, 18).map((line, i) => (
               <label key={i} className="mv-line">
                 <input
                   type="checkbox"
@@ -119,12 +124,12 @@ const MVHeaderSelector = ({ selectedmv = "", fileId,selectedCustomer, onSave, on
         </label>
         {showMv6 && (
           <div className="mv-container">
-            {mergedGroups.slice(10).map((line, i) => (
-              <label key={i + 10} className="mv-line">
+            {mergedGroups.slice(18).map((line, i) => (
+              <label key={i + 18} className="mv-line">
                 <input
                   type="checkbox"
-                  checked={selectedIndexes.includes(i + 10)}
-                  onChange={() => handleCheckboxChange(i + 10)}
+                  checked={selectedIndexes.includes(i + 18)}
+                  onChange={() => handleCheckboxChange(i + 18)}
                 />
                 {line}
               </label>
@@ -138,6 +143,7 @@ const MVHeaderSelector = ({ selectedmv = "", fileId,selectedCustomer, onSave, on
         <button onClick={onClose}>Cancel</button>
       </div>
     </div>
+    
   );
 };
 

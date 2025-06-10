@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { addCustomers } from "../services/api";
+import { addCustomers,fetchProjectById } from "../services/api";
 import "../styles/addcus.css";
 
 const mergedGroups = [
@@ -42,16 +42,19 @@ const mergedGroups = [
     "//$MV6_Start[]"
 ];
 
-const AddCustomerModal = ({ isOpen, onClose }) => {
+const AddCustomerModal = ({ isOpen, onClose ,loading,setLoading}) => {
   const [customerInputs, setCustomerInputs] = useState([""]);
   const [selectedIndexes, setSelectedIndexes] = useState([]);
   const [showMv4, setShowMv4] = useState(true);
   const [showMv6, setShowMv6] = useState(true);
-  const [loading, setLoading] = useState(false);
+  //const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const projectId = localStorage.getItem("projectId");
-  const projectName=localStorage.getItem("projectName");
+  let projectName = localStorage.getItem("projectName") || "No Project Selected";
+  let projectId = localStorage.getItem("projectId");
+  useEffect(() => {
+    projectName = localStorage.getItem("projectName") || "No Project Selected";
+    projectId = localStorage.getItem("projectId");
+  }, [projectId]);
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? "hidden" : "auto";
@@ -89,7 +92,9 @@ const AddCustomerModal = ({ isOpen, onClose }) => {
     setLoading(true);
 
     try {
-      await addCustomers(projectId, filteredCustomers, selectedIndexes,projectName);
+      const datap = await fetchProjectById(projectId);
+  const Pnameof=datap.name;
+      await addCustomers(projectId, filteredCustomers, selectedIndexes,Pnameof);
       setCustomerInputs([""]);
       setSelectedIndexes([]);
       setError("");

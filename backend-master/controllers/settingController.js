@@ -9,7 +9,6 @@ const DB_NAME = "setfile_manager";
 const DB_USER = "root";
 const DB_PASS = "Ziya@8856";
 const { exec } = require("child_process");
-// Get all settings for a customer
 
 const runDump = (tableName, outputPath) => {
   return new Promise((resolve, reject) => {
@@ -26,30 +25,43 @@ const runDump = (tableName, outputPath) => {
   });
 };
 const commitAndPushToGit = () => {
-  return new Promise((resolve, reject) => {
-    exec(`git -C "${ROOT_DIR}" add .`, (err) => {
-      if (err) {
-        console.error("❌ Git add failed:", err);
-        return reject(err);
-      }
-      exec(`git -C "${ROOT_DIR}" commit -m "Created project  with all related tables"`, (err) => {
+    return new Promise((resolve, reject) => {
+      // Step 1: git add .
+      exec(`git -C "${ROOT_DIR}" add .`, (err) => {
         if (err) {
-          console.error("❌ Git commit failed:", err);
+          console.error("❌ Git add failed:", err);
           return reject(err);
         }
-        exec(`git -C "${ROOT_DIR}" push`, (err) => {
-          if (err) {
-            console.error("❌ Git push failed:", err);
-            return reject(err);
+  
+        // Step 2: check if there are any staged changes
+        exec(`git -C "${ROOT_DIR}" diff --cached --quiet`, (err) => {
+          if (!err) {
+            console.log("ℹ️ Nothing to commit. Working tree clean.");
+            return resolve(); // Exit early — nothing to commit
           }
-          console.log("✅ Git commit and push completed successfully.");
-          resolve();
+  
+          // Step 3: commit and push if there are changes
+          exec(`git -C "${ROOT_DIR}" commit -m "Created project with all related tables"`, (err) => {
+            if (err) {
+              console.error("❌ Git commit failed:", err);
+              return reject(err);
+            }
+  
+            exec(`git -C "${ROOT_DIR}" push`, (err) => {
+              if (err) {
+                console.error("❌ Git push failed:", err);
+                return reject(err);
+              }
+  
+              console.log("✅ Git commit and push completed successfully.");
+              resolve();
+            });
+          });
         });
       });
     });
-  });
-};
-
+  };
+// Get all settings for a customer
 exports.getSettingsByCustomer = async (req, res) => {
   const { customerId } = req.params;
 
@@ -83,67 +95,7 @@ exports.getTableName = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
-// Add a new setting for a customer
-exports.addSettings = async (req, res) => {
-  try {
-    const { settings, uniqueArray1 } = req.body;
-    console.log("uniqueArray1", uniqueArray1);
-    if (!settings || !Array.isArray(settings) || settings.length === 0) {
-      return res.status(400).json({ message: "Invalid request data" });
-    }
-
-    // Insert settings into the database
-    const settingQuery = "INSERT INTO setting (customer_id, name, table_name) VALUES ?";
-    const settingValues = settings.map(({ customer_id, name, table_name }) => [
-      customer_id,
-      name,
-      table_name
-    ]);
-
-    const [result] = await pool.query(settingQuery, [settingValues]);
-
-    // Fetch the inserted settings with only id, name, and table_name
-    const settingQuerySelect = "SELECT id, name, table_name FROM setting WHERE id >= ? AND id < ?";
-    const [newSettings] = await pool.query(settingQuerySelect, [result.insertId, result.insertId + result.affectedRows]);
-
-    // **First loop: Create all tables**
-    for (const setting of newSettings) {
-      try {
-        const createTableQuery = `
-          CREATE TABLE IF NOT EXISTS \`${setting.table_name}\` (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            serial_number INT NOT NULL,
-            Tunning_param VARCHAR(512) DEFAULT NULL
-          )
-        `;
-        await pool.query(createTableQuery);
-      } catch (tableError) {
-        console.error(`Error creating table ${setting.table_name}:`, tableError);
-      }
-    }
-    
-    // **Second loop: Insert values into tables**
-    if (uniqueArray1 && Array.isArray(uniqueArray1) && uniqueArray1.length > 0) {
-      for (const setting of newSettings) {
-        try {
-          const insertQuery = `INSERT INTO \`${setting.table_name}\` (serial_number, Tunning_param) VALUES ?`;
-          
-          // Add serial numbers starting from 1
-          const values = uniqueArray1.map((param, index) => [index + 1, param]);
-    
-          await pool.query(insertQuery, [values]);
-        } catch (insertError) {
-          console.error(`Error inserting values into ${setting.table_name}:`, insertError);
-        }
-      }
-    }
-    
-
-    res.json({ message: "Settings added successfully", settings: newSettings });
-  } catch (err) {
-    res.status(500).json({ message: "Database error", error: err.message });
-  }
-};
+// Add a new setting for a custome
 exports.addSetting = async (req, res) => {
   const connection = await pool.getConnection();
   try {
@@ -228,7 +180,7 @@ exports.addSetting = async (req, res) => {
             console.error("❌ Error during dumping tables:", error);
           }
         // Git push
-       commitAndPushToGit()
+        await commitAndPushToGit()
       .then(() => console.log("Done"))
       .catch(err => console.error("Error:", err));
     

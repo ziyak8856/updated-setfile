@@ -12,7 +12,7 @@ import {
   getCustomerById,
 } from "../services/api";
 import EditCustomerModal from "./EditCustomerModal";
- const mergedGroups = [/* ... your MV4 and MV6 strings ... */
+const mergedGroups = [
     "//$MV4[MCLK:[*MCLK*],mipi_phy_type:[*PHY_TYPE*],mipi_lane:[*PHY_LANE*],mipi_datarate:[*MIPI_DATA_RATE*]]",
     "//$MV4_Sensor[fps:[*FPS*]]",
     "//$MV4_CPHY_LRTE[enable:[*LRTE_EN*],longPacketSpace:2,shortPacketSpace:2]]",
@@ -50,15 +50,17 @@ import EditCustomerModal from "./EditCustomerModal";
     "//$MV6_SFR[address:[*SFR_ADDRESS_6*],data:[*SFR_DATA_6*]]",
     "//$MV6_SFR[address:[*SFR_ADDRESS_7*],data:[*SFR_DATA_7*]]",
     "//$MV6_Start[]"
-    ];
+];
 
-const Navbar = ({className, selectedModes, setSelectedModes, selectedCustomer, setSelectedCustomer }) => {
+const Navbar = ({className, selectedModes, setSelectedModes, selectedCustomer, setSelectedCustomer,selectedMkclTable,setSelectedMkclTable,loading,setLoading }) => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
-  const projectName =
-    localStorage.getItem("projectName") || "No Project Selected";
-  const projectId = localStorage.getItem("projectId");
-
+  let projectName = localStorage.getItem("projectName") || "No Project Selected";
+  let projectId = localStorage.getItem("projectId");
+  useEffect(() => {
+    projectName = localStorage.getItem("projectName") || "No Project Selected";
+    projectId = localStorage.getItem("projectId");
+ }, [projectId]);
   // const [selectedModes, setSelectedModes] = useState([]);
   //const [valueType, setValueType] = useState("hex");
   const [selectedFile, setSelectedFile] = useState(null);
@@ -72,20 +74,17 @@ const Navbar = ({className, selectedModes, setSelectedModes, selectedCustomer, s
   // const [projectDetails, setProjectDetails] = useState(null);
   const [uniqueVariables, setUniqueVariables] = useState([]);
   const [mkclTables, setMkclTables] = useState([]);
-  const [selectedMkclTables, setSelectedMkclTables] = useState([]);
+ 
+  //const [selectedMkclTable, setSelectedMkclTable] = useState("");
   const[isEditModalOpen,setEditModalOpen] = useState(false);
  
-const toggleSelectiontable = (tableName) => {
-    setSelectedMkclTables((prev) =>
-      prev.includes(tableName)
-        ? prev.filter((t) => t !== tableName)
-        : [...prev, tableName]
-    );
-  };
+
   
 const handleLogout = () => {
     ["token", "user", "projectId", "projectName"].forEach(item => localStorage.removeItem(item));
+    localStorage.clear();
     navigate("/");
+    
 };
 
 const handleFileChange = (event) => {
@@ -107,6 +106,7 @@ const handleUpload = async () => {
         setShowAlert(true);
         return;
     }
+    setLoading(true)
 
     try {
         await uploadRegmap({
@@ -118,9 +118,11 @@ const handleUpload = async () => {
         setMessage("Regmap uploaded successfully!");
         setShowAlert(true);
         setSelectedFile(null);
+        setLoading(false)
     } catch (error) {
         console.error("Upload failed:", error);
         setMessage("Failed to upload regmap: " + error.message);
+        setLoading(false);
         setShowAlert(true);
     }
 };
@@ -148,6 +150,11 @@ const handleCustomerChange = (event) => {
     setSelectedModes([]);
     console.log("Selected customer:",selectedCustomer);
 };
+const handleMkclChange=(event)=>{
+  event.preventDefault();
+  setSelectedMkclTable(event.target.value);
+  console.log(event.target.value);
+}
 useEffect(() => {
   if (selectedCustomer) {
     fetchCustomerById(selectedCustomer); // Fetch customer details
@@ -227,7 +234,7 @@ const fetchTables = async () => {
 try {
   const data = await fetchSettings(selectedCustomer);
   setMkclTables(data);
-  setSelectedMkclTables([]); // Reset selection on customer change
+// Reset selection on customer change
 } catch (error) {
   console.error("Error fetching MKCL tables:", error);
 }
@@ -255,7 +262,10 @@ try {
         <EditCustomerModal 
                 isOpen={isEditModalOpen} 
                 onClose={() => setEditModalOpen(false)} 
-                customerId={selectedCustomer} />
+                customerId={selectedCustomer}
+                loading={loading}
+                setLoading={setLoading}
+                 />
 
           <label className="upload-btn">
             Upload Regmap
@@ -272,7 +282,7 @@ try {
           >
             Submit
           </button>
-          {showAlert && message && window.alert(message)}{" "}
+         
           {/* Show alert once */}
           <select
             className="nav-select"
@@ -302,23 +312,22 @@ try {
       {/* Bottom Section: Mode, MKCL Tables & Value Selection */}
       <div className="navbar-bottom">
 
-        {/* MKCL Table Selection */}
-        <div className="mkcl-section">
+      <div className="mkcl-section">
           <h3>MCLK TABLES:</h3>
-          <div className="radio-container">
+          
+         <select
+            className="nav-select"
+            value={selectedMkclTable}
+            onChange={handleMkclChange}
+          >
+            <option value="">Select MKCL Table</option>
             {mkclTables.map((table) => (
-              <label key={table.table_name} className="radio-label">
-                <input
-                  type="checkbox"
-                  value={table.table_name}
-                  checked={selectedMkclTables.includes(table)}
-                  onChange={() => toggleSelectiontable(table)}
-                />
+              <option key={table.id} value={table.id}>
                 {table.name}
-              </label>
+              </option>
             ))}
+          </select>
           </div>
-        </div>
 
         {/* Mode Selection */}
         <div className="mode-section">
@@ -340,7 +349,7 @@ try {
         
         
       </div>
-
+    
     </nav>
   );
 };

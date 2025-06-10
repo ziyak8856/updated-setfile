@@ -11,7 +11,8 @@ const Dashboard = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedModes, setSelectedModes] = useState(null);
   const [selectedSetFiles, setSelectedSetFiles] = useState({});
-
+  const [selectedMkclTable, setSelectedMkclTable] = useState("");
+  const [loading, setLoading] = useState(false);
   const [globalData, setGlobalData] = useState({
     tableData: [],
     editedCells: {},
@@ -20,6 +21,13 @@ const Dashboard = () => {
     // Add other states you want to preserve
   });
   return (
+    <div>
+        
+      {loading && (
+        <div className="loading-overlay">
+          <div className="spinner"></div>
+        </div>
+      )}
     <div >
       {/* Pass data and handlers to Navbar */}
       <Navbar
@@ -28,17 +36,26 @@ const Dashboard = () => {
         setSelectedModes={setSelectedModes}
         selectedCustomer={selectedCustomer}
         setSelectedCustomer={setSelectedCustomer}
+        selectedMkclTable={selectedMkclTable}
+        setSelectedMkclTable={setSelectedMkclTable}
+        loading={loading}
+        setLoading={setLoading}
       />
      <div style={{ padding: "20px", maxWidth: "100%",overflowY:"auto"}}>
       <div className={`dashboard-container ${showGlobal ? "" : "expanded"} ${showFileList ? "" : "expanded-filelist"}`}>
         {/* Editable File Data Table */}
         <div className="section data-table">
-          <FileDataTable selectedSetFiles={selectedSetFiles} />
+          <FileDataTable selectedSetFiles={selectedSetFiles}
+          selectedCustomer={selectedCustomer}
+          selectedMkclTable={selectedMkclTable}
+          loading={loading}
+          setLoading={setLoading}
+        />
         </div>
 
         {/* File List */}
         {showFileList && (
-          <div className="section file-list">
+          <div className="section file-list" style={{display:"flex"}}>
             <button
               className="toggle-btn filelist"
               onClick={() => setShowFileList(false)} // Hide File List
@@ -50,6 +67,9 @@ const Dashboard = () => {
               selectedSetFiles={selectedSetFiles}
               setSelectedSetFiles={setSelectedSetFiles}
               selectedCustomer={selectedCustomer}
+              selectedMkclTable={selectedMkclTable}
+              loading={loading}
+              setLoading={setLoading}
             />
           </div>
         )}
@@ -63,9 +83,6 @@ const Dashboard = () => {
             <span className="toggle-icon">+</span>
             
           </button>
-           
-          
-          
         )}
 
         {/* Global Data Section */}
@@ -95,6 +112,7 @@ const Dashboard = () => {
         </button>
       )}
       </div>
+    </div>
     </div>
     </div>
   );

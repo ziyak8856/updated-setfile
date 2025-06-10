@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import {
-  fetchTableNameBySettingId,
-  fetchTableData,
+  fetchTableDataFornew,
   fetchRegmap,
+  cloneFromAny,
   getCustomerById,
-  CloneFileFromsame,
   fetchProjectById
+
 } from "../services/api";
 import "../styles/FileData.css";
 const mergedGroups = [
@@ -49,8 +49,8 @@ const mergedGroups = [
 ];
 
 const { stringify } = require('json-stringify-safe');
-const CloneFIleDataTable = ({ selectedSetFiles,setfilePrefix ,generatedSetfileName,selectedModes,selectedCustomer,loading,setLoading}) => {
-  const [tableNames, setTableNames] = useState({});
+const CreateOwnSetfile = ({ setfilePrefix ,generatedSetfileName,selectedModes,selectedCustomer,selectedMkclTable,selectedMkclTableKey,loading,setLoading}) => {
+ //const [tableName, setTableName] = useState("");
 const [tableData, setTableData] = useState([]);
 const [editedCells, setEditedCells] = useState({});
 const [editingCell, setEditingCell] = useState(null);
@@ -63,17 +63,17 @@ const [regmapContent, setRegmapContent] = useState("Loading regmap content...");
 const [focusedRow, setFocusedRow] = useState(null);
 const[deleted,setDeletedRows] = useState([]);
 const [changesSaved, setChangesSaved] = useState(false);
+const [selectedIndexes,setSelectedIndexes]=useState([]);
 let projectName = localStorage.getItem("projectName") || "No Project Selected";
 let projectId = localStorage.getItem("projectId");
 useEffect(() => {
   projectName = localStorage.getItem("projectName") || "No Project Selected";
   projectId = localStorage.getItem("projectId");
 }, [projectId]);
-
 useEffect(() => {
   const fetchAndSetRegmap = async () => {
-     projectId = localStorage.getItem("projectId");
-    
+    let projectId = localStorage.getItem("projectId");
+    console.log("pppppp",projectId)
     if (projectId) {
       try {
         setLoading(true); // Start loading
@@ -100,46 +100,11 @@ useEffect(() => {
    setLoading(false);
   fetchAndSetRegmap();
 }, []); // ✅ Only runs once when the component mounts
-useEffect(() => {
-  const fetchTableNames = async () => {
-    setLoading(true);
-    setError("");
 
-    try {
-      const newTableNames = {};
-
-      await Promise.all(
-        Object.values(selectedSetFiles).map(async (file) => {
-          if (!newTableNames[file.setting_id]) {
-            const tableName = await fetchTableNameBySettingId(file.setting_id);
-            newTableNames[file.setting_id] = tableName || "Unknown Table";
-          }
-        })
-      );
-
-      if (JSON.stringify(newTableNames) !== JSON.stringify(tableNames)) {
-        setTableNames(newTableNames);
-      }
-
-    } catch {
-      setError("Failed to fetch table names.");
-      setLoading(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (Object.keys(selectedSetFiles).length > 0) {
-    fetchTableNames();
-  } else {
-    resetState();
-  }
-// ✅ Do not include tableNames to avoid loops
-}, [selectedSetFiles]);
 
 useEffect(() => {
   const fetchData = async () => {
-    if (!Object.keys(tableNames).length || !Object.keys(selectedSetFiles).length) {
+    if (!selectedMkclTable||!setfilePrefix) {
       resetState();
       return;
     }
@@ -149,17 +114,13 @@ useEffect(() => {
 
     try {
       const mergedData = {};
-      const dynamicColumns = new Set(["serial_number", "Tunning_param"]);
-
-      await Promise.all(
-        Object.values(selectedSetFiles).map(async (file) => {
-          const tableName = tableNames[file.setting_id];
-          const columnName = file.name;
-
-          if (tableName && columnName) {
-            const data = await fetchTableData(tableName, columnName);
+      const dynamicColumns = new Set(["serial_number", "Tunning_param",`${setfilePrefix}`]);
+      const tableName = selectedMkclTable;
+         
+          if (tableName) {
+            const data = await fetchTableDataFornew(tableName);
             if (data?.rows) {
-              dynamicColumns.add(columnName);
+              
               data.rows.forEach((row) => {
                 const id = row.id;
                 if (!mergedData[id]) {
@@ -167,16 +128,13 @@ useEffect(() => {
                     id: row.id,
                     serial_number: row.serial_number,
                     Tunning_param: row.Tunning_param,
-                    setting_id: file.setting_id,
+                    setting_id: selectedMkclTableKey,
                   };
                 }
-                mergedData[id][columnName] = row[columnName] ?? "-";
+                mergedData[id][`${setfilePrefix}`] = row[`${setfilePrefix}`] ?? "-";
               });
             }
           }
-        })
-      );
-
       const newColumns = [...dynamicColumns];
       const mergedArray = Object.values(mergedData).sort((a, b) => a.serial_number - b.serial_number);
 
@@ -193,13 +151,12 @@ useEffect(() => {
    setLoading(false)
   fetchData();
 // ✅ Rely only on meaningful changes
-}, [JSON.stringify(tableNames), JSON.stringify(selectedSetFiles)]);
+}, [selectedMkclTable]);
 
 // \U0001f9f9 Resets all state to defaults
 const resetState = () => {
   setTableData([]);
   setColumns(["serial_number", "Tunning_param"]);
-  setTableNames({});
   setEditedCells({});
   setEditingCell(null);
   setNewRows([]);
@@ -238,7 +195,7 @@ const handleChange = (e, rowId, colName) => {
       return updatedRow;
     });
   });
-
+ 
   // Update editedCells
   if (!isNewRow) {
     setEditedCells(prev => {
@@ -270,6 +227,13 @@ const handleChange = (e, rowId, colName) => {
 };
 
 
+useEffect(() => {
+   columns.forEach(col=>{
+     const v=!["id", "serial_number", "setting_id", "Tunning_param"].includes(col);
+     if(v);
+     if(v)return;
+   })
+},[setfilePrefix]);
 const handleAddRow = (refRow) => {
   const newTempId = `temp-${Date.now()}`;
   const index = tableData.findIndex(row => row.id === refRow.id);
@@ -309,7 +273,6 @@ const handleAddRow = (refRow) => {
     },
   ]);
 };
-
 // \U0001f9e0 Unified Save Button
 const handleDeleteRow = (rowId) => {
   const rowToDelete = tableData.find(row => row.id === rowId);
@@ -331,216 +294,119 @@ const handleDeleteRow = (rowId) => {
   console.log(rowToDelete, "rowToDelete");
   setTableData(prev => prev.filter(row => row.id !== rowId)); // Remove from UI
 };
-
-
 const handleSaveAllChanges = async () => {
   setLoading(true);
-  const updates = [];
-  const deletions = [];
-  const insertions = [];
     try {
-
       
-      const file = Object.values(selectedSetFiles)[0]; // The only selected file
-  
-        
-        // Remove the previous selected setfile and set the new one
-       // setSelectedSetFiles(updatedFiles);  // This ensures that only the new setfile is selected
       
-  
-     if (Object.keys(editedCells).length > 0) {
-      for (const rowId in editedCells) {
-        const changes = editedCells[rowId];
-        const settingId = tableData.find(row => row.id == rowId)?.setting_id;
-        const tableName = tableNames[settingId];
-        if (!tableName) continue;
-        
-        for (const colName in changes) {
-          const regmapEntry = regmapContent[changes[colName]]?.Value;
-          const value = changes[colName] ;
-          let coln=colName;
-          // If not Tunning_param, override with new file name
-          if (colName !== "Tunning_param") {
-            coln = setfilePrefix;
-          }
-          updates.push({
-            tableName,
-            rowId,
-            colName:coln,
+        const simplifiedData = tableData.map(row => {
+        const { id, serial_number, Tunning_param, setting_id, ...rest } = row;
+        const value = Object.values(rest)[0]; // get the single value inside the rest object
+        const regmapEntry = regmapContent[Tunning_param]?.Value;
+        const isComment=Tunning_param.trim().startsWith("//");
+        const defaultparamValue= isComment ? null: (regmapEntry !== undefined ? regmapEntry : value);
+        return {
+            Tunning_param,
             value,
-            regmapEntry,
-          });
-        }
-      }
-    }
-    if (deleted.length > 0) {
-      for (const row of deleted) {
-        const tableName = tableNames[row.setting_id];
-        if (!tableName) continue;
-        deletions.push({
-          tableName,
-          rowId: row.id
+            defaultparamValue
+        };
         });
-      }
-      }
-      if (newRows.length > 0) {
-        const unsavedValidRows = [];
-      for (const newRow of newRows) {
-        const rowInState = tableData.find(r => r.id === newRow.tempId);
-        const tunningValue = rowInState?.Tunning_param?.toString().trim();
-    
-        if (!tunningValue) {
-          alert(`Tunning_param is required before saving row with serial no: ${rowInState.serial_number}`);
-          return;
-        }
-    
-        unsavedValidRows.push({ newRow, rowInState });
-      }
-      for (const { newRow, rowInState } of unsavedValidRows) {
-        const refRow = tableData.find(r => r.id === newRow.refId);
-        const settingId = refRow?.setting_id;
-        const tableName = tableNames[settingId];
-        if (!tableName) continue;
-    
-        const isComment = typeof rowInState.Tunning_param === "string" &&
-                          rowInState.Tunning_param.trim().startsWith("//");
-    
-        const tuningKey = rowInState.Tunning_param?.trim();
-        const regmapValue = regmapContent?.[tuningKey]?.Value ?? null;
-        console.log("ghsdfhyvshud",regmapValue)
-        const finalRowData = {};
-        columns.forEach(col => {
-          if (!["id", "serial_number", "setting_id"].includes(col)) {
-            if (col === "Tunning_param") {
-              finalRowData[col] = rowInState[col];
-            } else {
-
-              finalRowData[setfilePrefix] = isComment ? null : (rowInState[col] ?? regmapValue);
-            }
-          }
-        });
-    
-        const adjustedRefId = !isNaN(parseInt(newRow.refId))
-          ? parseInt(newRow.refId)
-          : newRow.refId;
-    
-        insertions.push({
-          tableName,
-          refId: adjustedRefId,
-          position: newRow.position,
-          data: finalRowData,
-          setting_id: rowInState.setting_id,
-          tempId: newRow.tempId,
-          defaultValue:regmapValue,
-        });
-      }
-      }
-          const data = await getCustomerById(selectedCustomer);
-      const customerName=data.name;
-      const mvvariables = data.mvvariables
-      ? JSON.parse(data.mvvariables)
-      : [];
-      const datap = await fetchProjectById(projectId);
-  const Pnameof=datap.name;
-      const response = await CloneFileFromsame(selectedModes, file.setting_id,setfilePrefix,generatedSetfileName,file.selectedmv,updates,deletions,insertions,Pnameof,customerName,mvvariables,tableNames[ file.setting_id],file.name)// POST array to backend
-
-      if (response?.success && response?.newRows) {
-        setTableData(prev => {
-          let updated = [...prev];
-          for (const { newRow, tempId, setting_id } of response.newRows) {
-            const index = updated.findIndex(r => r.id === tempId);
-            if (index !== -1) {
-              updated[index] = { ...newRow, setting_id };
-            }
-          }
-          return updated;
-        });
-        setDeletedRows([]);
-        setNewRows([]);
-        setEditedCells({});
-       alert(" saved successfully!");
-      } else {
-        alert("Some rows failed to save. Please try again.");
-      }
-     console.log(projectName)
+      //  console.log("simplifiedData",simplifiedData);
+        const data = await getCustomerById(selectedCustomer);
+      
+        const indexes = data.selectedmv
+          .split(",")
+          .map((i) => parseInt(i.trim()))
+          .filter((i) => !isNaN(i));
+        setSelectedIndexes(indexes);
+      
+        const datap = await fetchProjectById(projectId);
+        const Pnameof=datap.name;
+      const insertsetfile=await cloneFromAny(selectedCustomer,indexes,selectedMkclTable,simplifiedData,setfilePrefix,selectedModes,selectedMkclTableKey,generatedSetfileName,data.selectedmv,Pnameof);
       setChangesSaved(true);
+      setDeletedRows([]);
+      setNewRows([]);
+      setEditedCells({});
       setLoading(false);
-      alert("Setfile cloned and all changes saved successfully.");
+      alert(insertsetfile.message);
     } catch (error) {
       console.error("Error in handleSaveAllChanges:", error);
       alert("An error occurred while saving changes.");
-      setLoading(false);
     }
   };
   
 
 
 const Genratesetfile = async () => {
-    
-const file = Object.values(selectedSetFiles)[0]; 
-const simplifiedData = tableData.reduce((acc, row) => {
-  const { id, serial_number, Tunning_param, setting_id, ...rest } = row;
-  const value = Object.values(rest)[0]; // get the single value inside the rest object
-  const isComment = Tunning_param.trim().startsWith("//");
-  const defaultparamValue = isComment ? null : value;
-
-  acc[Tunning_param] = defaultparamValue;
-  return acc;
-}, {});
-console.log(simplifiedData)
-//console.log(JSON.stringify(simplifiedData, null, 2));
-
-     const indexes = file.selectedmv
-     .split(",")
-     .map((i) => parseInt(i.trim()))
-     .filter((i) => !isNaN(i));
-     const data = await getCustomerById(selectedCustomer);
-      
-    const mvvariables = data.mvvariables
-    ? JSON.parse(data.mvvariables)
-    : [];    
-  const combinedMVText = indexes
-    .map(i => mergedGroups[i])
-    .join("\n");
-   console.log(combinedMVText)
-  // Extract unique [*VAR*] placeholders from the combined lines
-  const regex = /\[\*(.*?)\*\]/g;
-  const uniqueVariables = new Set(mvvariables);
-  let match;
-  console.log(uniqueVariables)
-  function replacePlaceholders(text, json) {
-      return text.replace(/\[\*(.*?)\*\]/g, (match, varName) => json[varName] || match);
-    }
-    
-    // Replace placeholders with values from the JSON object
-    const replacedText = replacePlaceholders(combinedMVText, simplifiedData);
-    let actualtext="\n";
-    for(const key in simplifiedData){
-     if(uniqueVariables.has(key))continue;
-     if(simplifiedData[key])
-     actualtext+="WRITE"+"  #"+key+"      "+simplifiedData[key]+"\n";
-     else
-     actualtext+="\n"+key+"\n";
- }
- console.log(replacedText)
- console.log(actualtext); 
- const dataToWrite = replacedText+"\n"+actualtext;
-  const blob = new Blob([dataToWrite], { type: 'text/plain' });
-  const url = URL.createObjectURL(blob);
+  const finalRowData = {};
+ // console.log(tableData);
+  const simplifiedData = tableData.reduce((acc, row) => {
+    const { id, serial_number, Tunning_param, setting_id, ...rest } = row;
+    const value = Object.values(rest)[0]; // get the single value inside the rest object
+    const isComment = Tunning_param.trim().startsWith("//");
+    const defaultparamValue = isComment ? null : value;
   
-  // Create a link element
-   const a = document.createElement('a');
-   a.href = url;
-   a.download = `${generatedSetfileName}`; // Set the file name
-  document.body.appendChild(a);
-  a.click(); // Trigger the download
-  document.body.removeChild(a); // Clean up
-  URL.revokeObjectURL(url); // Free up memory
+    acc[Tunning_param] = defaultparamValue;
+    return acc;
+  }, {});
+ // console.log(simplifiedData)
+  //console.log(JSON.stringify(simplifiedData, null, 2));
+    const data = await getCustomerById(selectedCustomer);
+       
+        const indexes = data.selectedmv
+          .split(",")
+          .map((i) => parseInt(i.trim()))
+          .filter((i) => !isNaN(i));
+        setSelectedIndexes(indexes);
+      
+      const mvvariables = data.mvvariables
+      ? JSON.parse(data.mvvariables)
+      : [];    
+    const combinedMVText = indexes
+      .map(i => mergedGroups[i])
+      .join("\n");
+     console.log(combinedMVText)
+    // Extract unique [*VAR*] placeholders from the combined lines
+    const regex = /\[\*(.*?)\*\]/g;
+    const uniqueVariables = new Set(mvvariables);
+    let match;
+    console.log(uniqueVariables)
+    function replacePlaceholders(text, json) {
+        return text.replace(/\[\*(.*?)\*\]/g, (match, varName) => json[varName] || match);
+      }
+      
+      // Replace placeholders with values from the JSON object
+      const replacedText = replacePlaceholders(combinedMVText, simplifiedData);
+      let actualtext="\n";
+    for(const key in simplifiedData){
+        if(uniqueVariables.has(key))continue;
+        if(simplifiedData[key])
+        actualtext+="#WRITE"+"  "+key+"      "+simplifiedData[key]+"\n";
+        else
+        actualtext+="\n"+key+"\n";
+    }
+    console.log(replacedText)
+    console.log(actualtext); 
+    const dataToWrite = replacedText+"\n"+actualtext;
+
+    const blob = new Blob([dataToWrite], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    
+    // Create a link element
+     const a = document.createElement('a');
+     a.href = url;
+     a.download = `${generatedSetfileName}`; // Set the file name
+    document.body.appendChild(a);
+    a.click(); // Trigger the download
+    document.body.removeChild(a); // Clean up
+    URL.revokeObjectURL(url); // Free up memory
+
 };
 
 // Call the function (make sure to define tableData before calling)
 return (
    
+      
   <div style={{ padding: "20px", maxWidth: "100%", maxHeight: '83vh' }}>
        <button
       onClick={Genratesetfile}
@@ -570,7 +436,7 @@ return (
     >
       Switch to {displayFormat === "hex" ? "Decimal" : "Hexadecimal"}
     </button>
-      {(Object.keys(editedCells).length > 0 || newRows.length > 0|| deleted.length > 0||(generatedSetfileName!=""&& JSON.stringify(selectedSetFiles)!="{}")) && (
+      {(Object.keys(editedCells).length > 0 || newRows.length > 0|| deleted.length > 0||(generatedSetfileName!="")) && (
         <button onClick={handleSaveAllChanges} style={{
           marginTop: "20px",
           marginLeft: "20px",
@@ -785,4 +651,4 @@ return (
 );
 };
 
-export default CloneFIleDataTable;
+export default CreateOwnSetfile;

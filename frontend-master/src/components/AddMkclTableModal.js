@@ -2,7 +2,7 @@ import { useState } from "react";
 import { addSetting ,getCustomerById} from "../services/api";
 
 
-const AddMkclTableModal = ({ isOpen, onClose, projectName, customerName, customerId,uniqueArray1,refreshModes }) => {
+const AddMkclTableModal = ({ isOpen, onClose, projectName, customerName, customerId,uniqueArray1,refreshModes,loading,setLoading}) => {
   const [interfaceType, setInterfaceType] = useState("cphy");
   const [clockRate, setClockRate] = useState("");
   console.log(projectName, customerName, customerId,uniqueArray1);
@@ -11,6 +11,7 @@ const AddMkclTableModal = ({ isOpen, onClose, projectName, customerName, custome
       alert("Please enter a valid clock rate.");
       return;
     }
+    setLoading(true)
  
     try {
       // Fetch customer details
@@ -23,9 +24,11 @@ const AddMkclTableModal = ({ isOpen, onClose, projectName, customerName, custome
       await addSetting(customerId,naa,tableName,projectName,updatedCustomerName);
       alert("MKCL Table added successfully!");
       onClose(); // Close modal after successful submission
+      setLoading(false)
     } catch (error) {
       console.error("Error handling MKCL Table addition:", error.message);
       alert("An error occurred while adding the table. Please try again.");
+      setLoading(false)
     }
   };
 
